@@ -244,19 +244,39 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 
 -- 4.2 Get current user societe_id
 CREATE OR REPLACE FUNCTION get_user_societe_id()
-RETURNS UUID AS $$
+RETURNS UUID
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_societe_id UUID;
 BEGIN
-    RETURN (SELECT societe_id FROM utilisateurs WHERE id = auth.uid());
+    SELECT societe_id INTO v_societe_id
+    FROM utilisateurs
+    WHERE id = auth.uid();
+    RETURN v_societe_id;
 END;
-$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
+$$;
 
 -- 4.3 Get current user role
 CREATE OR REPLACE FUNCTION get_user_role()
-RETURNS role_utilisateur AS $$
+RETURNS role_utilisateur
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_role role_utilisateur;
 BEGIN
-    RETURN (SELECT role FROM utilisateurs WHERE id = auth.uid());
+    SELECT role INTO v_role
+    FROM utilisateurs
+    WHERE id = auth.uid();
+    RETURN v_role;
 END;
-$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
+$$;
 
 -- ==========================================
 -- 5. TRIGGER FUNCTIONS
@@ -273,7 +293,11 @@ $$ LANGUAGE plpgsql;
 
 -- 5.2 Auto-fill Audit Columns
 CREATE OR REPLACE FUNCTION fn_handle_audit_columns()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
         IF NEW.created_by IS NULL THEN
@@ -289,15 +313,7 @@ BEGIN
     END IF;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- 5.3 Prevent hard delete
-CREATE OR REPLACE FUNCTION fn_prevent_hard_delete()
-RETURNS TRIGGER AS $$
-BEGIN
-    RAISE EXCEPTION 'Hard delete is forbidden. Use is_archived = true.';
-END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- 5.4 Normalize telephone trigger
 CREATE OR REPLACE FUNCTION fn_trigger_normalize_telephone()
@@ -310,7 +326,11 @@ $$ LANGUAGE plpgsql;
 
 -- 5.5 Generate Code Client
 CREATE OR REPLACE FUNCTION fn_generate_code_client()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
     next_num INTEGER;
 BEGIN
@@ -323,11 +343,15 @@ BEGIN
     END IF;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- 5.6 Generate Code Produit
 CREATE OR REPLACE FUNCTION fn_generate_code_produit()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
     next_num INTEGER;
 BEGIN
@@ -340,11 +364,15 @@ BEGIN
     END IF;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- 5.7 Generate Code Commande
 CREATE OR REPLACE FUNCTION fn_generate_code_commande()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
     next_num INTEGER;
 BEGIN
@@ -357,11 +385,15 @@ BEGIN
     END IF;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- 5.8 Update Commande Totaux
 CREATE OR REPLACE FUNCTION fn_update_commande_totaux()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
     target_commande_id UUID;
 BEGIN
@@ -392,11 +424,15 @@ BEGIN
 
     RETURN NULL;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- 5.9 Create Encaissement on Livraison
 CREATE OR REPLACE FUNCTION fn_create_encaissement_on_livraison()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
     v_total NUMERIC(10,2);
 BEGIN
@@ -416,69 +452,86 @@ BEGIN
             NEW.societe_id,
             v_total,
             0,
-            'ENC-' || UPPER(SUBSTR(NEW.id::TEXT, 1, 4))
+            'ENC-' || UPPER(SUBSTR(REPLACE(NEW.id::TEXT, '-', ''), 1, 8))
         )
         ON CONFLICT (commande_id) DO NOTHING;
     END IF;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- 5.10 Update Status after Encaissement
 CREATE OR REPLACE FUNCTION fn_update_statut_after_encaissement()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 BEGIN
-    -- Only trigger if we are in EN_LIVRAISON (or transitioning)
-    -- Actually, the rule says when montant_encaisse is updated/inserted while commande is EN_LIVRAISON
     UPDATE commandes
     SET statut = CASE
         WHEN NEW.dette = 0 THEN 'LIVRE_PAYE'::statut_commande
         ELSE 'LIVRE_DETTE'::statut_commande
     END
-    WHERE id = NEW.commande_id AND statut = 'EN_LIVRAISON';
+    WHERE id = NEW.commande_id
+      AND statut IN ('EN_LIVRAISON', 'LIVRE_PAYE', 'LIVRE_DETTE');
 
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- 5.11 Before Recouvrement Insert
 CREATE OR REPLACE FUNCTION fn_before_recouvrement_insert()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
     v_dette_initiale NUMERIC(10,2);
-    v_total_recouvre_prev NUMERIC(10,2);
+    v_deja_recouvre NUMERIC(10,2);
 BEGIN
-    -- Get initial dette from encaissements
-    SELECT montant_total INTO v_dette_initiale
+    -- Lit la dette actuelle depuis encaissements (déjà calculée via colonne GENERATED)
+    SELECT dette INTO v_dette_initiale
     FROM encaissements
     WHERE commande_id = NEW.commande_id;
 
-    -- Get sum of previous recouvrements
-    SELECT COALESCE(SUM(montant_recouvre), 0) INTO v_total_recouvre_prev
+    IF v_dette_initiale IS NULL THEN
+        RAISE EXCEPTION 'Aucun encaissement trouvé pour la commande %', NEW.commande_id;
+    END IF;
+
+    -- Somme des recouvrements précédents non archivés
+    SELECT COALESCE(SUM(montant_recouvre), 0) INTO v_deja_recouvre
     FROM recouvrements
     WHERE commande_id = NEW.commande_id AND is_archived = FALSE;
 
-    NEW.dette_avant := v_dette_initiale - (
-        (SELECT COALESCE(montant_encaisse, 0) FROM encaissements WHERE commande_id = NEW.commande_id) + v_total_recouvre_prev
-    );
+    -- Dette restante actuelle
+    NEW.dette_avant := v_dette_initiale - v_deja_recouvre;
 
+    -- Rejette le sur-recouvrement
     IF NEW.montant_recouvre > NEW.dette_avant THEN
-        RAISE EXCEPTION 'Le montant du recouvrement (%) est supérieur à la dette restante (%)', NEW.montant_recouvre, NEW.dette_avant;
+        RAISE EXCEPTION 'Montant recouvrement (%) supérieur à dette restante (%)',
+                        NEW.montant_recouvre, NEW.dette_avant;
     END IF;
 
     NEW.dette_apres := NEW.dette_avant - NEW.montant_recouvre;
 
+    -- Génère le code si non fourni
     IF NEW.code_recouvrement IS NULL THEN
-        NEW.code_recouvrement := 'REC-' || UPPER(REPLACE(uuid_generate_v4()::TEXT, '-', ''));
+        NEW.code_recouvrement := 'REC-' || UPPER(SUBSTR(REPLACE(uuid_generate_v4()::TEXT, '-', ''), 1, 8));
     END IF;
 
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- 5.12 After Recouvrement Insert
 CREATE OR REPLACE FUNCTION fn_after_recouvrement_insert()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 BEGIN
     IF NEW.dette_apres = 0 THEN
         UPDATE commandes
@@ -487,11 +540,15 @@ BEGIN
     END IF;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- 5.13 Assign Livreur by Zone
 CREATE OR REPLACE FUNCTION fn_assign_livreur_by_zone()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
     v_zone_id UUID;
     v_livreur_id UUID;
@@ -514,29 +571,37 @@ BEGIN
     END IF;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- 5.14 Auto-populate societe_id for child tables
 CREATE OR REPLACE FUNCTION fn_populate_societe_id_from_commande()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 BEGIN
     IF NEW.societe_id IS NULL THEN
         SELECT societe_id INTO NEW.societe_id FROM commandes WHERE id = NEW.commande_id;
     END IF;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- 5.15 Generate Code Prepa
 CREATE OR REPLACE FUNCTION fn_generate_code_prepa()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 BEGIN
     IF NEW.code_prepa IS NULL THEN
-        NEW.code_prepa := 'PREP-' || UPPER(REPLACE(uuid_generate_v4()::TEXT, '-', ''));
+        NEW.code_prepa := 'PREP-' || UPPER(SUBSTR(REPLACE(uuid_generate_v4()::TEXT, '-', ''), 1, 8));
     END IF;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- ==========================================
 -- 6. TRIGGERS
@@ -553,8 +618,6 @@ BEGIN
         EXECUTE format('CREATE TRIGGER tr_update_updated_at BEFORE UPDATE ON %I FOR EACH ROW EXECUTE FUNCTION fn_update_updated_at()', t);
         -- Audit columns
         EXECUTE format('CREATE TRIGGER tr_handle_audit_columns BEFORE INSERT OR UPDATE ON %I FOR EACH ROW EXECUTE FUNCTION fn_handle_audit_columns()', t);
-        -- Prevent Hard Delete
-        EXECUTE format('CREATE TRIGGER tr_prevent_hard_delete BEFORE DELETE ON %I FOR EACH ROW EXECUTE FUNCTION fn_prevent_hard_delete()', t);
     END LOOP;
 END $$;
 
@@ -784,6 +847,54 @@ CREATE POLICY "Livreur view products of their societe" ON produits
         AND societe_id = get_user_societe_id()
     );
 
+-- Le livreur peut voir les lignes_commande de ses commandes assignées
+CREATE POLICY "Livreur view lignes of assigned orders" ON lignes_commande
+    FOR SELECT TO authenticated
+    USING (
+        get_user_role() = 'LIVREUR'
+        AND commande_id IN (
+            SELECT id FROM commandes WHERE livreur_assigne_id = auth.uid()
+        )
+        AND societe_id = get_user_societe_id()
+    );
+
+-- Le livreur peut voir l'encaissement de ses commandes assignées
+CREATE POLICY "Livreur view encaissement of assigned orders" ON encaissements
+    FOR SELECT TO authenticated
+    USING (
+        get_user_role() = 'LIVREUR'
+        AND commande_id IN (
+            SELECT id FROM commandes WHERE livreur_assigne_id = auth.uid()
+        )
+        AND societe_id = get_user_societe_id()
+    );
+
+-- Le livreur peut UPDATE encaissement des commandes en EN_LIVRAISON
+CREATE POLICY "Livreur update encaissement in delivery" ON encaissements
+    FOR UPDATE TO authenticated
+    USING (
+        get_user_role() = 'LIVREUR'
+        AND commande_id IN (
+            SELECT id FROM commandes
+            WHERE livreur_assigne_id = auth.uid()
+              AND statut = 'EN_LIVRAISON'
+        )
+        AND societe_id = get_user_societe_id()
+    )
+    WITH CHECK (
+        get_user_role() = 'LIVREUR'
+        AND societe_id = get_user_societe_id()
+    );
+
+-- Le livreur peut voir les préparations de ses commandes assignées
+CREATE POLICY "Livreur view preparations of assigned orders" ON preparations_commande
+    FOR SELECT TO authenticated
+    USING (
+        get_user_role() = 'LIVREUR'
+        AND livreur_id = auth.uid()
+        AND societe_id = get_user_societe_id()
+    );
+
 -- SELECT zones/type_pdv: read only for their societe
 CREATE POLICY "Livreur view zones of their societe" ON zones
     FOR SELECT TO authenticated
@@ -820,6 +931,14 @@ CREATE INDEX idx_commandes_statut_societe ON commandes(societe_id, statut);
 CREATE INDEX idx_commandes_livreur_date ON commandes(livreur_assigne_id, date_livraison);
 CREATE INDEX idx_commandes_date_livraison ON commandes(date_livraison);
 CREATE INDEX idx_recouvrements_date ON recouvrements(commande_id, date_recouvrement);
+
+-- ==========================================
+-- 11. GRANTS (empêche la suppression physique via permissions)
+-- ==========================================
+REVOKE DELETE ON societes, zones, type_pdv, utilisateurs, clients, produits,
+                 commandes, lignes_commande, encaissements, recouvrements,
+                 preparations_commande
+FROM authenticated, anon;
 
 -- ==========================================
 -- 10. COMMENTS
