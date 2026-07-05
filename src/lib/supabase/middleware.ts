@@ -19,14 +19,18 @@ export async function updateSession(request: NextRequest) {
         set(name: string, value: string, options: CookieOptions) {
           request.cookies.set({ name, value, ...options });
           response = NextResponse.next({
-            request: { headers: request.headers },
+            request: {
+              headers: request.headers,
+            },
           });
           response.cookies.set({ name, value, ...options });
         },
         remove(name: string, options: CookieOptions) {
           request.cookies.set({ name, value: '', ...options });
           response = NextResponse.next({
-            request: { headers: request.headers },
+            request: {
+              headers: request.headers,
+            },
           });
           response.cookies.set({ name, value: '', ...options });
         },
@@ -34,7 +38,12 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  const { data: { user } } = await supabase.auth.getUser();
+  // IMPORTANT: Avoid writing any logic between createServerClient and
+  // supabase.auth.getUser. A simple mistake can make it very hard to debug
+  // issues with users being randomly logged out.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   // Routes publiques
   const publicRoutes = ['/login', '/auth/callback'];
@@ -56,5 +65,6 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // IMPORTANT: You *must* return the response object as it is.
   return response;
 }
