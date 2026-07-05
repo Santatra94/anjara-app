@@ -1,0 +1,17 @@
+
+> anjara-app@0.1.0 dev
+> next dev -p 3000
+
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3000
+
+ ✓ Starting...
+ ✓ Ready in 1830ms
+ ○ Compiling /login ...
+ ✓ Compiled /login in 5s (621 modules)
+ GET /login 200 in 5463ms
+ ✓ Compiled in 567ms (302 modules)
+ ○ Compiling / ...
+ ✓ Compiled / in 2.7s (654 modules)
+ ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET / 200 in 2956ms
