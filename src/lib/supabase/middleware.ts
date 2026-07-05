@@ -39,9 +39,8 @@ export async function updateSession(request: NextRequest) {
   );
 
   // IMPORTANT: Avoid writing any logic between createServerClient and
-  // supabase.auth.getUser(). A simple mistake can make it very hard to debug
+  // supabase.auth.getUser. A simple mistake can make it very hard to debug
   // issues with users being randomly logged out.
-
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -52,31 +51,20 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith(route)
   );
 
+  // Si pas connecté et pas sur route publique → redirect login
   if (!user && !isPublicRoute) {
-    // no user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
   }
 
+  // Si connecté et sur login → redirect dashboard
   if (user && request.nextUrl.pathname === '/login') {
     const url = request.nextUrl.clone();
     url.pathname = '/';
     return NextResponse.redirect(url);
   }
 
-  // IMPORTANT: You *must* return the response object as it is. If you're creating a
-  // new response object with NextResponse.next() make sure to:
-  // 1. Pass the request in it, like so:
-  //    const response = NextResponse.next({
-  //      request: {
-  //        headers: request.headers,
-  //      },
-  //    })
-  // 2. Copy over the cookies, like so:
-  //    response.cookies.set(...)
-  //    e.g. response.cookies.set(name, value, options)
-  // 3. Change the myNewResponse object to response and return it.
-
+  // IMPORTANT: You *must* return the response object as it is.
   return response;
 }
