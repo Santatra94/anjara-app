@@ -23,24 +23,39 @@ export function useCommandeDetail(id: string) {
     if (!user || !id) return;
     setLoading(true);
 
-    const { data, error } = await supabase
+    // Requête 1 : Commande + relations réelles
+    const { data: commandeData, error: commandeError } = await supabase
       .from('commandes')
       .select(`
         *,
         client:clients(*, zone:zones(*), type_pdv:type_pdv(*)),
         livreur:utilisateurs!livreur_assigne_id(id, nom),
-        lignes_commande(*, produit:produits(*)),
-        ecart:v_ecart_commande_preparation(*)
+        lignes_commande(*, produit:produits(*))
       `)
       .eq('id', id)
       .eq('societe_id', user.societe.id)
+      .eq('is_archived', false)
       .single();
 
-    if (error) {
-      toast.error("Erreur", { description: error.message });
-    } else {
-      setCommande(data as unknown as CommandeFull);
+    if (commandeError || !commandeData) {
+      toast.error("Commande introuvable", { description: commandeError?.message });
+      setCommande(null);
+      setLoading(false);
+      return;
     }
+
+    // Requête 2 : Vue d'écart (séparée car pas de relation FKey possible pour auto-join)
+    const { data: ecartData } = await supabase
+      .from('v_ecart_commande_preparation')
+      .select('*')
+      .eq('commande_id', id)
+      .maybeSingle();
+
+    setCommande({
+      ...(commandeData as unknown as CommandeFull),
+      ecart: ecartData || null
+    });
+
     setLoading(false);
   }, [user, id, supabase]);
 
