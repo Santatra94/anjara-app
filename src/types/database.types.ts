@@ -285,6 +285,10 @@ export interface Database {
           created_by: string | null
           updated_by: string | null
           is_archived: boolean | null
+          ordre_tournee: number | null
+          date_livraison_effective: string | null
+          nom_receptionnaire: string | null
+          mode_paiement_livraison: string | null
         }
         Insert: {
           id?: string
@@ -309,6 +313,10 @@ export interface Database {
           created_by?: string | null
           updated_by?: string | null
           is_archived?: boolean | null
+          ordre_tournee?: number | null
+          date_livraison_effective?: string | null
+          nom_receptionnaire?: string | null
+          mode_paiement_livraison?: string | null
         }
         Update: {
           id?: string
@@ -333,6 +341,10 @@ export interface Database {
           created_by?: string | null
           updated_by?: string | null
           is_archived?: boolean | null
+          ordre_tournee?: number | null
+          date_livraison_effective?: string | null
+          nom_receptionnaire?: string | null
+          mode_paiement_livraison?: string | null
         }
       }
       lignes_commande: {
@@ -477,6 +489,65 @@ export interface Database {
           is_archived?: boolean | null
         }
       }
+      promesses_recouvrement: {
+        Row: {
+          id: string
+          encaissement_id: string
+          commande_id: string
+          societe_id: string
+          livreur_id: string | null
+          date_prevue: string
+          montant_promis: number | null
+          statut: 'EN_ATTENTE' | 'HONOREE_COMPLETE' | 'HONOREE_PARTIELLE' | 'REPORTEE'
+          date_effective: string | null
+          montant_effectif: number | null
+          notes: string | null
+          ordre_tournee: number | null
+          created_at: string | null
+          updated_at: string | null
+          created_by: string | null
+          updated_by: string | null
+          is_archived: boolean | null
+        }
+        Insert: {
+          id?: string
+          encaissement_id: string
+          commande_id: string
+          societe_id: string
+          livreur_id?: string | null
+          date_prevue: string
+          montant_promis?: number | null
+          statut?: 'EN_ATTENTE' | 'HONOREE_COMPLETE' | 'HONOREE_PARTIELLE' | 'REPORTEE'
+          date_effective?: string | null
+          montant_effectif?: number | null
+          notes?: string | null
+          ordre_tournee?: number | null
+          created_at?: string | null
+          updated_at?: string | null
+          created_by?: string | null
+          updated_by?: string | null
+          is_archived?: boolean | null
+        }
+        Update: {
+          id?: string
+          encaissement_id?: string
+          commande_id?: string
+          societe_id?: string
+          livreur_id?: string | null
+          date_prevue?: string
+          montant_promis?: number | null
+          statut?: 'EN_ATTENTE' | 'HONOREE_COMPLETE' | 'HONOREE_PARTIELLE' | 'REPORTEE'
+          date_effective?: string | null
+          montant_effectif?: number | null
+          notes?: string | null
+          ordre_tournee?: number | null
+          created_at?: string | null
+          updated_at?: string | null
+          created_by?: string | null
+          updated_by?: string | null
+          is_archived?: boolean | null
+        }
+      }
       preparations_commande: {
         Row: {
           id: string
@@ -584,6 +655,27 @@ export interface Database {
           nb_clients: number | null
         }
       }
+      v_tournee_du_jour: {
+        Row: {
+            type_tache: 'LIVRAISON' | 'RECOUVREMENT'
+            tache_id: string
+            reference: string | null
+            client_id: string | null
+            client_nom: string | null
+            client_telephone: string | null
+            client_localisation: string | null
+            zone_nom: string | null
+            livreur_id: string | null
+            date_tache: string | null
+            ordre: number | null
+            societe_id: string | null
+            statut_actuel: string | null
+            montant_total: number | null
+            dette_restante: number | null
+            promesse_id: string | null
+            commentaire: string | null
+        }
+      }
     }
     Enums: {
       role_utilisateur: 'ADMIN' | 'GERANT' | 'LIVREUR'
@@ -605,6 +697,7 @@ export type Commande = Database['public']['Tables']['commandes']['Row']
 export type LigneCommande = Database['public']['Tables']['lignes_commande']['Row']
 export type Encaissement = Database['public']['Tables']['encaissements']['Row']
 export type Recouvrement = Database['public']['Tables']['recouvrements']['Row']
+export type PromesseRecouvrement = Database['public']['Tables']['promesses_recouvrement']['Row']
 export type PreparationCommande = Database['public']['Tables']['preparations_commande']['Row']
 
 export type EcartCommandePreparation = Database['public']['Views']['v_ecart_commande_preparation']['Row']
@@ -612,8 +705,11 @@ export type ProductionDuJour = Database['public']['Views']['v_production_du_jour
 export type ClientDette = Database['public']['Views']['v_clients_dettes']['Row']
 export type PerformanceLivreur = Database['public']['Views']['v_performance_livreurs']['Row']
 export type CompteJourLivreur = Database['public']['Views']['v_compte_jour_livreur']['Row']
+export type TourneeDuJour = Database['public']['Views']['v_tournee_du_jour']['Row']
 
 export type RoleUtilisateur = Database['public']['Enums']['role_utilisateur']
 export type CategorieProduit = Database['public']['Enums']['categorie_produit']
 export type StatutCommande = Database['public']['Enums']['statut_commande']
 export type StatutPreparation = Database['public']['Enums']['statut_preparation']
+
+export type ModePaiement = 'ESPECES' | 'MVOLA' | 'ORANGE_MONEY' | 'AIRTEL_MONEY'
