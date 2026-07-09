@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { Toaster } from "@/components/ui/sonner";
@@ -9,8 +9,19 @@ export const metadata: Metadata = {
   title: 'Anjara - Gestion commerciale',
   description: 'Application de gestion pour Anjara (yaourt & jus)',
   manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Anjara',
+  },
+};
+
+export const viewport: Viewport = {
   themeColor: '#ffffff',
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({
