@@ -657,7 +657,7 @@ export interface Database {
       }
       v_tournee_du_jour: {
         Row: {
-            type_tache: 'LIVRAISON' | 'RECOUVREMENT'
+            type_tache: 'PREPARATION' | 'LIVRAISON' | 'RECOUVREMENT'
             tache_id: string
             reference: string | null
             client_id: string | null
