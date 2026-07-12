@@ -62,8 +62,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Retirer la propriété societe imbriquée du user pour éviter la duplication
-      const { societe: _, ...utilisateurClean } = utilisateur as unknown as Utilisateur & { societe: Societe };
-
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+const { societe: _societe, ...utilisateurClean } = utilisateur as unknown as Utilisateur & { societe: Societe };
       setUser({
         id: authUser.id,
         email: authUser.email!,
