@@ -1,0 +1,239 @@
+# 📊 Anjara — Suivi du projet
+
+> Document maintenu à jour pour ne jamais perdre le contexte entre les sessions.
+> Chaque jour de travail = nouvelle section datée.
+
+---
+
+## 🎯 Vision produit
+
+**Anjara** = ERP mobile-first pour gestion de tournée commerciale (yaourts + jus) à Madagascar.
+
+- **Multi-tenant** : plusieurs sociétés isolées
+- **3 rôles** : ADMIN, GERANT, LIVREUR
+- **Workflow** : Commande → Préparation → Livraison → Recouvrement
+
+---
+
+## 🛠️ Stack technique
+
+- **Frontend** : Next.js 14 (App Router) + TypeScript + Tailwind CSS + shadcn/ui
+- **Backend** : Supabase (PostgreSQL + Auth + RLS + Storage)
+- **PWA** : next-pwa + service worker
+- **Hébergement** : Vercel — https://anjara-app.vercel.app
+- **Repo** : https://github.com/Santatra94/anjara-app
+
+---
+
+## 📊 État actuel (12/07/2026)
+
+### ✅ Fonctionnalités opérationnelles
+
+**Authentification & Multi-tenant**
+- Login/logout Supabase Auth
+- Isolation par societe_id (RLS)
+- AuthProvider Context (performance)
+
+**Configuration (ADMIN/GERANT)**
+- Zones, Types PDV, Produits, Clients, Livreurs
+- CRUD complet + soft delete
+
+**Workflow commande**
+- Création commande (ADMIN + LIVREUR)
+- Préparation détaillée (ADMIN + LIVREUR)
+- Livraison + encaissement
+- Recouvrement avec promesses cycliques
+
+**Interface LIVREUR mobile**
+- PWA installable
+- Ma tournée du jour (Préparations, Livraisons, Recouvrements)
+- Drag-and-drop pour réordonner
+- FAB "+" pour nouvelle commande
+- Caisse temps réel
+- Historique
+- Bottom navigation
+
+**Sécurité**
+- 4 modes de paiement (Espèces, Mvola, Orange, Airtel)
+- Numéros téléphone normalisés (+261)
+- Codes auto-générés (COM-XXXX, CLT001, etc.)
+- Soft delete uniquement
+
+---
+
+## 📅 Journal de travail
+
+### 12/07/2026 — Session marathon (15h → 21h)
+
+**Bugs critiques résolus**
+- ✅ Fix routing LIVREUR : création page `/tournee` + redirections layouts
+- ✅ Fix SQL trigger `uuid_generate_v4()` → `gen_random_uuid()`
+- ✅ Fix trigger auto-passage LIVRE_DETTE au moindre INSERT
+- ✅ Fix RLS multi-tenant pour LIVREUR (INSERT recouvrements, préparations)
+- ✅ Fix vue `v_tournee_du_jour` avec dette temps réel
+
+**Améliorations UX**
+- ✅ Dates par défaut J+7 → J+2 (livraison + recouvrement)
+- ✅ Redirection directe `/tournee` après action (au lieu de `/`)
+
+**Nouvelles fonctionnalités**
+- ✅ Création commande par LIVREUR (FAB flottant bleu)
+- ✅ Préparation par LIVREUR (nouvelle tâche violette dans tournée)
+- ✅ Trigger assignation livreur intelligent (LIVREUR + livraison J = auto-assigné)
+- ✅ Réassignation livreur par ADMIN/GERANT (modal sur détail commande)
+
+**Performance**
+- ✅ AuthProvider Context (évite refetch du user à chaque page)
+- ✅ Redirections optimisées
+
+---
+
+## 🔥 TODO PRIORITAIRE (à faire ensuite)
+
+### Haute priorité
+- [ ] **Upload icônes PWA** (icon-192.png + icon-512.png dans /public)
+- [ ] Test workflow complet en usage réel (créer → préparer → livrer → recouvrer)
+- [ ] Créer plusieurs livreurs test pour valider l'assignation par zone
+
+### Moyenne priorité (PROMPT 6)
+- [ ] **Dashboards** ADMIN/GERANT/LIVREUR
+  - Utiliser vues existantes (v_clients_dettes, v_performance_livreurs, etc.)
+  - Filtres : Aujourd'hui / Ce mois / Mois précédent / Personnalisé
+  - Graphiques (Recharts)
+
+### Optimisations vitesse
+- [ ] Optimistic UI après actions (afficher résultat avant réponse serveur)
+- [ ] Précharger les données de tournée
+- [ ] Vérifier config service worker (pas actif en dev)
+
+---
+
+## 🟡 TODO MOYEN TERME
+
+- [ ] **Module Dépenses** (PROMPT 7)
+  - Table `depenses` (catégories : matières premières, salaires, transport, loyer, etc.)
+  - CRUD ADMIN + GERANT uniquement
+  - Onglet "Finance" : CA - Dépenses = Bénéfice
+
+- [ ] **Module Stock réel** (PROMPT 8)
+  - Table `mouvements_stock`
+  - Interface production
+  - Stock ingrédients + produits finis
+  - Alerte stock faible
+
+- [ ] **Module Recettes** (PROMPT 9)
+  - Table `recettes` par produit
+  - Calcul coût de revient
+  - Marge par produit
+  - Optimiseur distribution parfums
+
+---
+
+## 🟢 TODO PLUS TARD (nice to have)
+
+- [ ] Notifications intelligentes (dettes anciennes, stock faible)
+- [ ] Rapports PDF/Excel exportables
+- [ ] Audit trail UI (voir qui a modifié quoi)
+- [ ] Historique modifications commandes
+
+---
+
+## 🐛 Bugs connus non-bloquants
+
+- [ ] Vitesse de navigation reste améliorable (~1-2s après action)
+- [ ] Pas d'affichage temps réel de la dette dans le formulaire recouvrement (affiche montant promesse initiale)
+
+---
+
+## 📁 Architecture des fichiers 
+src/
+├── app/
+│ ├── (dashboard)/ # Routes ADMIN/GERANT
+│ │ ├── layout.tsx # Redirect LIVREUR vers /tournee
+│ │ ├── commandes/
+│ │ ├── clients/
+│ │ ├── livreurs/
+│ │ ├── produits/
+│ │ ├── types-pdv/
+│ │ └── zones/
+│ ├── (livreur)/ # Routes LIVREUR mobile
+│ │ ├── layout.tsx # Redirect non-LIVREUR vers /
+│ │ ├── tournee/ # Page principale
+│ │ ├── nouvelle-commande/ # Créer une commande
+│ │ ├── preparation/[id]/ # Préparer une commande
+│ │ ├── livraison/[id]/ # Valider une livraison
+│ │ ├── recouvrement/[id]/ # Encaisser une dette
+│ │ ├── caisse/
+│ │ ├── mes-clients/
+│ │ └── historique/
+│ ├── login/
+│ └── layout.tsx # Wrappé avec AuthProvider
+├── components/
+│ ├── AuthProvider.tsx # Context React global
+│ ├── ProtectedRoute.tsx
+│ ├── commandes/ # UI commandes (ADMIN)
+│ ├── layout/ # DashboardShell, Sidebar, Header
+│ ├── livreur/ # Interface mobile LIVREUR
+│ ├── modules/ # Modales CRUD
+│ ├── shared/ # DatePicker
+│ └── ui/ # shadcn/ui
+├── hooks/ # Custom hooks
+├── lib/
+│ ├── schemas/ # Validations Zod
+│ ├── supabase/ # Clients Supabase
+│ └── utils.ts
+└── types/
+├── database.types.ts # Types Supabase générés
+└── index.ts
+
+
+---
+
+## 🔑 Règles métier importantes
+
+1. **Préparation ≤ Commande** : contrainte BDD (impossible de préparer plus que demandé)
+2. **Commande figée après livraison** : LIVRE_PAYE/DETTE = pas modifiable
+3. **Prix fixe** (pas de remise)
+4. **1 livreur actif par zone** (contrainte unique BDD)
+5. **Assignation intelligente** :
+   - LIVREUR crée commande + livraison aujourd'hui → auto-assigné à lui-même
+   - Sinon → livreur de la zone du client
+6. **4 modes paiement** : ESPECES, MVOLA, ORANGE_MONEY, AIRTEL_MONEY
+7. **Livreur ne peut PAS valider une livraison sans montant reçu**
+8. **Si dette → date recouvrement obligatoire → réapparaît cycliquement**
+
+---
+
+## 👥 Équipe
+
+- **Santatra** (@Santatra94) — Product Owner + Test
+- **Jules** (Google AI) — Dev principal (à surveiller de près)
+- **Claude** (Anthropic) — Architecture + Debug + Stratégie
+
+---
+
+## 📞 Contacts & Liens utiles
+
+- **App prod** : https://anjara-app.vercel.app
+- **Repo GitHub** : https://github.com/Santatra94/anjara-app
+- **Vercel** : https://vercel.com/santatra950123/anjara-app/deployments
+- **Supabase** : https://supabase.com/dashboard/project/hnlwdizspisvmxzyjjsc
+
+---
+
+## ⚠️ Règles de collaboration avec Jules
+
+1. **Toujours vérifier sur GitHub** que le code est bien poussé (Jules annonce "fait" parfois sans commit)
+2. **Le recadrer fermement** s'il divague
+3. **JAMAIS modifier le SQL initial** `001_initial_schema.sql`
+4. **Régénérer package-lock.json** après conflits (`npm install`)
+5. **Utiliser Radix UI standard** (pas @base-ui/react)
+6. **Types Supabase** : régénérés manuellement, collés par Santatra
+7. **Multi-tenancy** : filtrer par `societe_id`
+8. **Soft delete** : jamais DELETE, toujours `is_archived = true`
+9. **Codes auto par BDD** : ne pas les envoyer depuis le front
+10. **Audit auto via triggers** : ne pas envoyer created_by/updated_by
+
+---
+
+_Dernière mise à jour : 12/07/2026 — 21h00_
