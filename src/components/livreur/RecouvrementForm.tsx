@@ -84,11 +84,12 @@ export function RecouvrementForm({ id }: { id: string }) {
 
     setSubmitting(true);
 
-    try {
+        try {
       // 1. Créer le recouvrement
       const { error: recError } = await supabase.from('recouvrements').insert([{
         commande_id: promesse.commande_id,
         livreur_id: user?.id,
+        societe_id: user?.societe.id,
         montant_recouvre: montantRecu,
         mode_paiement: modePaiement,
         notes: notes,
