@@ -3,6 +3,7 @@
 import { useAuth } from '@/hooks/useAuth';
 import { BottomNav } from './BottomNav';
 import { IndicateurReseau } from './IndicateurReseau';
+import { FabNouvelleCommande } from './FabNouvelleCommande';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { LogOut } from 'lucide-react';
 
@@ -37,6 +38,7 @@ export function LivreurShell({ children }: { children: React.ReactNode }) {
            {children}
         </main>
 
+        <FabNouvelleCommande />
         <BottomNav />
       </div>
     </ProtectedRoute>
