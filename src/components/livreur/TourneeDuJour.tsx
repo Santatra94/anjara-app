@@ -47,19 +47,6 @@ export function TourneeDuJour() {
     }
   };
 
-  const renderCarte = (task: typeof tasks[0]) => {
-    switch (task.type_tache) {
-      case 'PREPARATION':
-        return <CartePreparation key={task.tache_id} task={task} />;
-      case 'LIVRAISON':
-        return <CarteLivraison key={task.tache_id} task={task} />;
-      case 'RECOUVREMENT':
-        return <CarteRecouvrement key={task.tache_id} task={task} />;
-      default:
-        return null;
-    }
-  };
-
   if (loading) return (
     <div className="flex flex-col items-center justify-center py-20 gap-4 text-gray-400">
         <RefreshCcw className="h-8 w-8 animate-spin" />
@@ -85,4 +72,46 @@ export function TourneeDuJour() {
             <div className="h-16 w-16 rounded-full bg-gray-50 flex items-center justify-center">
                 <Clock className="h-8 w-8" />
             </div>
-            
+            <div>
+                <p className="font-bold text-gray-900">Rien à l&apos;horizon !</p>
+                <p className="text-sm">Vous n&apos;avez aucune livraison ni recouvrement prévu pour aujourd&apos;hui.</p>
+            </div>
+            <Button variant="outline" onClick={() => refresh()} className="mt-2 rounded-full font-bold">
+                Actualiser
+            </Button>
+        </div>
+      ) : (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+          modifiers={[restrictToVerticalAxis]}
+        >
+          <SortableContext
+            items={tasks.map(t => t.tache_id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="space-y-4">
+              {tasks.map((task) => {
+                if (task.type_tache === 'PREPARATION') {
+                  return <CartePreparation key={task.tache_id} task={task} />;
+                }
+                if (task.type_tache === 'LIVRAISON') {
+                  return <CarteLivraison key={task.tache_id} task={task} />;
+                }
+                if (task.type_tache === 'RECOUVREMENT') {
+                  return <CarteRecouvrement key={task.tache_id} task={task} />;
+                }
+                return null;
+              })}
+            </div>
+          </SortableContext>
+        </DndContext>
+      )}
+
+      <div className="py-4 text-center">
+          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Fin de liste · Bonne route !</p>
+      </div>
+    </div>
+  );
+}
