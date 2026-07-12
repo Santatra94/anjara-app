@@ -101,7 +101,7 @@ export function LivraisonForm({ id }: { id: string }) {
       }
 
       toast.success("Livraison enregistrée !");
-      router.push('/');
+      router.push('/tournee');
     } catch (error) {
       const message = error instanceof Error ? error.message : "Erreur";
       toast.error("Erreur lors de la validation", { description: message });
