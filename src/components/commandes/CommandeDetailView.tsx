@@ -1,8 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import { useCommandeDetail } from "@/hooks/useCommandeDetail";
 import { useCommandes } from "@/hooks/useCommandes";
+import { useAuth } from "@/hooks/useAuth";
 import { StatutBadge } from "./StatutBadge";
+import { ReassignerLivreurModal } from "./ReassignerLivreurModal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +16,8 @@ import {
   Package,
   Calendar,
   XCircle,
-  FileText
+  FileText,
+  UserCog
 } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
@@ -32,6 +36,8 @@ import { StatutCommande } from "@/types/database.types";
 export function CommandeDetailView({ id }: { id: string }) {
   const { commande, loading, refresh } = useCommandeDetail(id);
   const { updateStatut } = useCommandes();
+  const { user } = useAuth();
+  const [reassignModalOpen, setReassignModalOpen] = useState(false);
 
   if (loading) return <div className="flex justify-center py-12"><Clock className="animate-spin h-8 w-8 text-blue-500" /></div>;
   if (!commande) return <div className="text-center py-12 text-red-500 font-bold">Commande introuvable</div>;
@@ -46,6 +52,11 @@ export function CommandeDetailView({ id }: { id: string }) {
       toast.error("Erreur", { description: message });
     }
   };
+
+  // Vérifier si l'utilisateur peut réassigner
+  const canReassignLivreur =
+    (user?.utilisateur.role === 'ADMIN' || user?.utilisateur.role === 'GERANT')
+    && (commande.statut === 'EN_ATTENTE' || commande.statut === 'PREPARATION');
 
   const getProgressColor = (percent: number) => {
     if (percent >= 81) return "bg-green-500";
@@ -116,141 +127,4 @@ export function CommandeDetailView({ id }: { id: string }) {
             </CardHeader>
             <CardContent className="space-y-4">
                 <div>
-                    <p className="font-bold text-lg">{commande.client?.nom_pdv}</p>
-                    <p className="text-sm text-muted-foreground italic">Type : {commande.client?.type_pdv?.nom_type}</p>
-                </div>
-                <div className="text-sm space-y-1">
-                    <p className="font-semibold text-gray-700">Zone : {commande.client?.zone?.nom}</p>
-                    <p className="text-gray-600">{commande.client?.localisation || "Pas de localisation précise"}</p>
-                </div>
-                <div className="pt-2 border-t">
-                    <p className="text-xs uppercase font-bold text-gray-400 mb-2">Livreur assigné</p>
-                    <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold">
-                            {commande.livreur?.nom?.charAt(0)}
-                        </div>
-                        <p className="font-medium">{commande.livreur?.nom || "Non assigné"}</p>
-                    </div>
-                </div>
-            </CardContent>
-          </Card>
-
-          {commande.commentaire && (
-            <Card className="bg-amber-50 border-amber-200">
-                <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-bold flex items-center gap-2 text-amber-800">
-                        <FileText className="h-4 w-4" /> Note / Commentaire
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-sm text-amber-900">{commande.commentaire}</p>
-                </CardContent>
-            </Card>
-          )}
-        </div>
-
-        {/* Détails de la commande (Demandé vs Préparé) */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Résumé de la préparation</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-8">
-              {/* Yaourts */}
-              <div className="space-y-2">
-                <div className="flex justify-between items-end">
-                    <div>
-                        <p className="font-bold text-blue-700">Yaourts</p>
-                        <p className="text-xs text-muted-foreground italic">Souhaités : {commande.parfums_yaourt_souhaites || "—"}</p>
-                    </div>
-                    <p className="text-sm font-bold">
-                        {commande.total_yaourt || 0} / {commande.total_yaourt_commande || 0} préparés
-                    </p>
-                </div>
-                <div className="h-3 w-full bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                        className={`h-full transition-all duration-500 ${getProgressColor(yaourtPercent)}`}
-                        style={{ width: `${yaourtPercent}%` }}
-                    />
-                </div>
-              </div>
-
-              {/* Jus */}
-              <div className="space-y-2">
-                <div className="flex justify-between items-end">
-                    <div>
-                        <p className="font-bold text-orange-700">Jus</p>
-                        <p className="text-xs text-muted-foreground italic">Souhaités : {commande.parfums_jus_souhaites || "—"}</p>
-                    </div>
-                    <p className="text-sm font-bold">
-                        {commande.total_jus || 0} / {commande.total_jus_commande || 0} préparés
-                    </p>
-                </div>
-                <div className="h-3 w-full bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                        className={`h-full transition-all duration-500 ${getProgressColor(jusPercent)}`}
-                        style={{ width: `${jusPercent}%` }}
-                    />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Lignes détaillées */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                <CardTitle className="text-lg">Détail des produits préparés</CardTitle>
-                {(commande.statut === 'EN_ATTENTE' || commande.statut === 'PREPARATION') && (
-                    <Button variant="outline" size="sm" asChild>
-                        <Link href={`/commandes/${id}/preparation`}>Modifier</Link>
-                    </Button>
-                )}
-            </CardHeader>
-            <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Produit</TableHead>
-                            <TableHead>Catégorie</TableHead>
-                            <TableHead className="text-right">Quantité</TableHead>
-                            <TableHead className="text-right">Prix Unitaire</TableHead>
-                            <TableHead className="text-right">Total</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {(!commande.lignes_commande || commande.lignes_commande.length === 0) ? (
-                            <TableRow>
-                                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground italic">
-                                    Aucun produit n&apos;a encore été préparé.
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            commande.lignes_commande.map((ligne) => (
-                                <TableRow key={ligne.id}>
-                                    <TableCell className="font-medium">{ligne.produit?.nom_produit}</TableCell>
-                                    <TableCell><span className="text-xs uppercase font-bold text-gray-400">{ligne.categorie}</span></TableCell>
-                                    <TableCell className="text-right font-bold">{ligne.quantite}</TableCell>
-                                    <TableCell className="text-right">{(ligne.prix_unitaire || 0).toLocaleString()} Ar</TableCell>
-                                    <TableCell className="text-right font-bold text-blue-600">
-                                        {(ligne.total_ligne || 0).toLocaleString()} Ar
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        )}
-                        {commande.lignes_commande && commande.lignes_commande.length > 0 && (
-                            <TableRow className="bg-gray-50 font-bold">
-                                <TableCell colSpan={4} className="text-right uppercase text-xs tracking-wider">Total Commande Réel</TableCell>
-                                <TableCell className="text-right text-lg text-blue-700">
-                                    {commande.lignes_commande.reduce((acc, curr) => acc + (curr.total_ligne || 0), 0).toLocaleString()} Ar
-                                </TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    </div>
-  );
-}
+                    <p 
