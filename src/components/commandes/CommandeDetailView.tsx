@@ -53,10 +53,11 @@ export function CommandeDetailView({ id }: { id: string }) {
     }
   };
 
-  // Vérifier si l'utilisateur peut réassigner
-  const canReassignLivreur =
-    (user?.utilisateur.role === 'ADMIN' || user?.utilisateur.role === 'GERANT')
-    && (commande.statut === 'EN_ATTENTE' || commande.statut === 'PREPARATION');
+    // Vérifier si l'utilisateur peut réassigner
+  const userRole = user?.utilisateur.role;
+  const isAdminOrGerant = userRole === 'ADMIN' || userRole === 'GERANT';
+  const isEditableStatus = commande.statut === 'EN_ATTENTE' || commande.statut === 'PREPARATION';
+  const canReassignLivreur = isAdminOrGerant && isEditableStatus;
 
   const getProgressColor = (percent: number) => {
     if (percent >= 81) return "bg-green-500";
