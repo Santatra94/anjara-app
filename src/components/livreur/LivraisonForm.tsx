@@ -37,7 +37,7 @@ export function LivraisonForm({ id }: { id: string }) {
   const [nomReceptionnaire, setNomReceptionnaire] = useState("");
   const [montantRecu, setMontantRecu] = useState<number>(0);
   const [modePaiement, setModePaiement] = useState<string>("ESPECES");
-  const [dateProchaineVisite, setDateProchaineVisite] = useState<Date | undefined>(addDays(new Date(), 7));
+  const [dateProchaineVisite, setDateProchaineVisite] = useState<Date | undefined>(addDays(new Date(), 2));
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
