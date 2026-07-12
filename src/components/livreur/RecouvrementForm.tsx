@@ -129,7 +129,7 @@ export function RecouvrementForm({ id }: { id: string }) {
       }
 
       toast.success("Recouvrement enregistré !");
-      router.push('/');
+      router.push('/tournee');
     } catch (error) {
       const message = error instanceof Error ? error.message : "Erreur";
       toast.error("Erreur", { description: message });
