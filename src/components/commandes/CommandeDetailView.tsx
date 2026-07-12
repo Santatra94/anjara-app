@@ -65,13 +65,13 @@ export function CommandeDetailView({ id }: { id: string }) {
     return "bg-red-500";
   };
 
-  const yaourtPercent = (commande.total_yaourt_commande ?? 0) > 0
-    ? Math.min(100, Math.round(((commande.total_yaourt ?? 0) / (commande.total_yaourt_commande ?? 0)) * 100))
-    : 0;
+  const totalYaourtCommande = commande.total_yaourt_commande ?? 0;
+  const totalYaourt = commande.total_yaourt ?? 0;
+  const yaourtPercent = totalYaourtCommande > 0 ? Math.min(100, Math.round((totalYaourt / totalYaourtCommande) * 100)) : 0;
 
-  const jusPercent = (commande.total_jus_commande ?? 0) > 0
-    ? Math.min(100, Math.round(((commande.total_jus ?? 0) / (commande.total_jus_commande ?? 0)) * 100))
-    : 0;
+  const totalJusCommande = commande.total_jus_commande ?? 0;
+  const totalJus = commande.total_jus ?? 0;
+  const jusPercent = totalJusCommande > 0 ? Math.min(100, Math.round((totalJus / totalJusCommande) * 100)) : 0;
 
   return (
     <div className="space-y-6">
