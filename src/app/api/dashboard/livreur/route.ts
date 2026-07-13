@@ -38,10 +38,10 @@ export async function GET() {
     .eq('date_jour', dateAujourdhui)
     .maybeSingle()
 
-  // 2. Tâches du jour depuis v_tournee_du_jour
+  // 2. Tâches restantes du jour depuis v_tournee_du_jour
   const { data: taches } = await supabase
     .from('v_tournee_du_jour')
-    .select('type_tache, statut_actuel, client_id, dette_restante')
+    .select('type_tache, statut_actuel, dette_restante')
     .eq('societe_id', societe_id)
     .eq('livreur_id', livreur_id)
     .eq('date_tache', dateAujourdhui)
@@ -49,11 +49,6 @@ export async function GET() {
   let nb_preparations = 0
   let nb_livraisons = 0
   let nb_recouvrements = 0
-  let nb_commandes_livrees = 0
-  let nb_commandes_restantes = 0
-  const clientsUniquesVisites = new Set<string>()
-
-  const statutsLivres = ['LIVRE_PAYE', 'LIVRE_DETTE']
 
   if (taches) {
     for (const t of taches) {
@@ -61,15 +56,7 @@ export async function GET() {
         nb_preparations++
       }
       if (t.type_tache === 'LIVRAISON') {
-        if (statutsLivres.includes(t.statut_actuel)) {
-          nb_commandes_livrees++
-          if (t.client_id) {
-            clientsUniquesVisites.add(t.client_id)
-          }
-        } else {
-          nb_livraisons++
-          nb_commandes_restantes++
-        }
+        nb_livraisons++
       }
       if (t.type_tache === 'RECOUVREMENT') {
         nb_recouvrements++
@@ -77,8 +64,33 @@ export async function GET() {
     }
   }
 
-  // 3. Dettes totales du livreur (commandes LIVRE_DETTE assignées à lui)
-  const { data: commandesDette } = await supabase
+  // 3. Commandes DEJA LIVREES aujourd'hui (table commandes)
+  const debutJour = dateAujourdhui + 'T00:00:00'
+  const finJour = dateAujourdhui + 'T23:59:59'
+
+  const { data: commandesLivrees } = await supabase
+    .from('commandes')
+    .select('client_id, statut')
+    .eq('societe_id', societe_id)
+    .eq('livreur_assigne_id', livreur_id)
+    .in('statut', ['LIVRE_PAYE', 'LIVRE_DETTE'])
+    .gte('date_livraison_effective', debutJour)
+    .lte('date_livraison_effective', finJour)
+
+  const nb_commandes_livrees = commandesLivrees ? commandesLivrees.length : 0
+  const nb_commandes_restantes = nb_livraisons
+
+  const clientsUniquesVisites = new Set<string>()
+  if (commandesLivrees) {
+    for (const c of commandesLivrees) {
+      if (c.client_id) {
+        clientsUniquesVisites.add(c.client_id)
+      }
+    }
+  }
+
+  // 4. Dettes totales du livreur (toutes commandes LIVRE_DETTE)
+  const { data: recouvrementsAll } = await supabase
     .from('v_tournee_du_jour')
     .select('dette_restante')
     .eq('societe_id', societe_id)
@@ -86,9 +98,9 @@ export async function GET() {
     .eq('type_tache', 'RECOUVREMENT')
 
   let dette_en_cours = 0
-  if (commandesDette) {
-    for (const c of commandesDette) {
-      dette_en_cours += Number(c.dette_restante || 0)
+  if (recouvrementsAll) {
+    for (const r of recouvrementsAll) {
+      dette_en_cours += Number(r.dette_restante || 0)
     }
   }
 
