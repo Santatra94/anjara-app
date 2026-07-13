@@ -44,7 +44,7 @@ export default function DashboardAdminPage() {
       }
       const json = await res.json()
       setData(json)
-    } catch (e) {
+       } catch {
       setErreur('Impossible de charger les donnees')
     } finally {
       setLoading(false)
