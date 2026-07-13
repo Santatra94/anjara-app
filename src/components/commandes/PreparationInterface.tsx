@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useCommandeDetail, CommandeFull } from "@/hooks/useCommandeDetail";
 import { useLignesCommande } from "@/hooks/useLignesCommande";
 import { useCommandes } from "@/hooks/useCommandes";
@@ -53,9 +53,10 @@ type ProduitLocal = {
   actif: boolean;
 };
 
-type Suggestion = {
+type SuggestionState = {
   nomOriginal: string;
-  produit: ProduitLocal | null;
+  produitIdSelectionne: string;
+  quantite: number;
 };
 
 function parseParfums(texte: string | null | undefined): string[] {
@@ -65,7 +66,7 @@ function parseParfums(texte: string | null | undefined): string[] {
 
 function trouverProduit(nomParfum: string, produits: ProduitLocal[]): ProduitLocal | null {
   const nomLower = nomParfum.toLowerCase();
-  const trouve = produits.find(function (p) {
+  var trouve = produits.find(function (p) {
     return p.nom_produit.toLowerCase() === nomLower;
   });
   return trouve || null;
@@ -84,58 +85,93 @@ export function PreparationInterface({ id }: { id: string }) {
   const [selectedProduitId, setSelectedProduitId] = useState<string>("");
   const [quantite, setQuantite] = useState<number>(1);
   const [submitting, setSubmitting] = useState(false);
-  const [quantitesSuggestions, setQuantitesSuggestions] = useState<Record<string, number>>({});
+  const [suggestionStates, setSuggestionStates] = useState<SuggestionState[]>([]);
 
   const selectedProduit = useMemo(function () {
     return produits.find(function (p) { return p.id === selectedProduitId; });
   }, [selectedProduitId, produits]);
 
-  const suggestions = useMemo(function () {
-    if (!commande) return [] as Suggestion[];
-    const parfumsYaourt = parseParfums(commande.parfums_yaourt_souhaites);
-    const parfumsJus = parseParfums(commande.parfums_jus_souhaites);
-    const tousParfums = parfumsYaourt.concat(parfumsJus);
-    return tousParfums.map(function (nom) {
+  // Extraire les parfums de la commande
+  const parfumsCommande = useMemo(function () {
+    if (!commande) return [] as string[];
+    var parfumsYaourt = parseParfums(commande.parfums_yaourt_souhaites);
+    var parfumsJus = parseParfums(commande.parfums_jus_souhaites);
+    return parfumsYaourt.concat(parfumsJus);
+  }, [commande]);
+
+  // Initialiser les suggestions quand commande + produits sont charges
+  useEffect(function () {
+    if (parfumsCommande.length === 0 || produits.length === 0) return;
+    if (suggestionStates.length > 0) return;
+
+    var initStates = parfumsCommande.map(function (nom) {
+      var match = trouverProduit(nom, produits as ProduitLocal[]);
       return {
         nomOriginal: nom,
-        produit: trouverProduit(nom, produits as ProduitLocal[]),
+        produitIdSelectionne: match ? match.id : '',
+        quantite: 0,
       };
     });
-  }, [commande, produits]);
+    setSuggestionStates(initStates);
+  }, [parfumsCommande, produits, suggestionStates.length]);
 
   if (loadingCmd || loadingLignes) return <div className="flex justify-center py-12"><Clock className="animate-spin h-8 w-8 text-blue-500" /></div>;
   if (!commande) return <div className="text-center py-12 text-red-500 font-bold">Commande introuvable</div>;
 
-  const handleAddSuggestion = async function (suggestion: Suggestion) {
-    if (!suggestion.produit) {
-      toast.error("Ce produit n'existe pas dans le catalogue");
+  function updateSuggestionProduit(index: number, newProduitId: string) {
+    var newStates = suggestionStates.map(function (s, i) {
+      if (i === index) {
+        return { nomOriginal: s.nomOriginal, produitIdSelectionne: newProduitId, quantite: s.quantite };
+      }
+      return s;
+    });
+    setSuggestionStates(newStates);
+  }
+
+  function updateSuggestionQuantite(index: number, newQte: number) {
+    var newStates = suggestionStates.map(function (s, i) {
+      if (i === index) {
+        return { nomOriginal: s.nomOriginal, produitIdSelectionne: s.produitIdSelectionne, quantite: newQte };
+      }
+      return s;
+    });
+    setSuggestionStates(newStates);
+  }
+
+  var handleAddSuggestion = async function (index: number) {
+    var sugg = suggestionStates[index];
+    if (!sugg || !sugg.produitIdSelectionne) {
+      toast.error("Selectionner un produit");
       return;
     }
-    const qte = quantitesSuggestions[suggestion.nomOriginal] || 0;
-    if (qte <= 0) {
+    if (sugg.quantite <= 0) {
       toast.error("Saisir une quantite superieure a 0");
       return;
     }
 
+    var produitChoisi = produits.find(function (p) { return p.id === sugg.produitIdSelectionne; });
+    if (!produitChoisi) {
+      toast.error("Produit introuvable");
+      return;
+    }
+
     setSubmitting(true);
-    const result = await addLigne({
-      produit_id: suggestion.produit.id,
-      quantite: qte,
-      prix_unitaire: suggestion.produit.prix,
-      categorie: suggestion.produit.categorie,
+    var result = await addLigne({
+      produit_id: produitChoisi.id,
+      quantite: sugg.quantite,
+      prix_unitaire: produitChoisi.prix,
+      categorie: produitChoisi.categorie as "YAOURT" | "JUS",
     });
 
     if (result.success) {
-      toast.success(suggestion.produit.nom_produit + " ajoute");
-      const nouvellesQtes = Object.assign({}, quantitesSuggestions);
-      delete nouvellesQtes[suggestion.nomOriginal];
-      setQuantitesSuggestions(nouvellesQtes);
+      toast.success(produitChoisi.nom_produit + " ajoute");
+      updateSuggestionQuantite(index, 0);
       await refreshCmd();
     }
     setSubmitting(false);
   };
 
-  const handleAddLigne = async () => {
+  var handleAddLigne = async function () {
     if (!selectedProduit) {
       toast.error("Veuillez selectionner un produit");
       return;
@@ -146,7 +182,7 @@ export function PreparationInterface({ id }: { id: string }) {
     }
 
     setSubmitting(true);
-    const result = await addLigne({
+    var result = await addLigne({
       produit_id: selectedProduit.id,
       quantite,
       prix_unitaire: selectedProduit.prix,
@@ -162,56 +198,56 @@ export function PreparationInterface({ id }: { id: string }) {
     setSubmitting(false);
   };
 
-  const handleFinishPreparation = async () => {
+  var handleFinishPreparation = async function () {
     try {
       if (!commande || !user) return;
 
-      const { error: prepaError } = await supabase.from('preparations_commande').insert([{
+      var insertResult = await supabase.from('preparations_commande').insert([{
         commande_id: id,
         livreur_id: (commande as CommandeFull).livreur_assigne_id,
         societe_id: user.societe.id,
         statut_prepa: 'TERMINEE'
       }]);
-      if (prepaError) throw prepaError;
+      if (insertResult.error) throw insertResult.error;
 
       await updateStatut(id, 'PREPARATION');
       toast.success("Preparation terminee avec succes");
       router.push('/commandes/' + id);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Une erreur est survenue";
+      var message = error instanceof Error ? error.message : "Une erreur est survenue";
       toast.error("Erreur lors de la validation", { description: message });
     }
   };
 
-  const handlePassToDelivery = async () => {
+  var handlePassToDelivery = async function () {
     try {
       await updateStatut(id, 'EN_LIVRAISON');
       toast.success("Commande passee en livraison");
       router.push('/commandes/' + id);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Une erreur est survenue";
+      var message = error instanceof Error ? error.message : "Une erreur est survenue";
       toast.error("Erreur lors du passage en livraison", { description: message });
     }
   };
 
-  const getProgressColor = (percent: number) => {
+  function getProgressColor(percent: number): string {
     if (percent >= 81) return "bg-green-500";
     if (percent >= 41) return "bg-orange-500";
     return "bg-red-500";
-  };
+  }
 
-  const yaourtPercent = (commande.total_yaourt_commande ?? 0) > 0
+  var yaourtPercent = (commande.total_yaourt_commande ?? 0) > 0
     ? Math.min(100, Math.round(((commande.total_yaourt ?? 0) / (commande.total_yaourt_commande ?? 0)) * 100))
     : 0;
 
-  const jusPercent = (commande.total_jus_commande ?? 0) > 0
+  var jusPercent = (commande.total_jus_commande ?? 0) > 0
     ? Math.min(100, Math.round(((commande.total_jus ?? 0) / (commande.total_jus_commande ?? 0)) * 100))
     : 0;
 
-  function setQteSuggestion(nom: string, val: number) {
-    const nouvelles = Object.assign({}, quantitesSuggestions);
-    nouvelles[nom] = val;
-    setQuantitesSuggestions(nouvelles);
+  function getPrixProduitSelectionne(produitId: string): string {
+    var p = produits.find(function (pr) { return pr.id === produitId; });
+    if (p) return p.prix.toLocaleString() + ' Ar';
+    return '—';
   }
 
   return (
@@ -283,7 +319,7 @@ export function PreparationInterface({ id }: { id: string }) {
 
         <div className="lg:col-span-2 space-y-6">
 
-          {suggestions.length > 0 && (
+          {suggestionStates.length > 0 && (
             <Card className="border-purple-200 bg-purple-50/30">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -292,40 +328,59 @@ export function PreparationInterface({ id }: { id: string }) {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {suggestions.map(function (sugg, idx) {
-                  const produitOk = sugg.produit !== null;
-                  const qte = quantitesSuggestions[sugg.nomOriginal] || 0;
-
+                {suggestionStates.map(function (sugg, idx) {
                   return (
                     <div key={idx} className="flex flex-wrap items-center gap-3 p-3 bg-white rounded-lg border">
-                      <div className="flex-1 min-w-[150px]">
-                        <p className="font-semibold text-sm">{sugg.nomOriginal}</p>
-                        {produitOk ? (
-                          <p className="text-xs text-gray-500">{sugg.produit!.prix.toLocaleString()} Ar</p>
-                        ) : (
-                          <p className="text-xs text-red-500">Produit introuvable dans le catalogue</p>
-                        )}
+                      <div className="flex-1 min-w-[180px] space-y-1">
+                        <p className="text-xs text-gray-400">Demande : {sugg.nomOriginal}</p>
+                        <Select
+                          value={sugg.produitIdSelectionne}
+                          onValueChange={function (v) { updateSuggestionProduit(idx, v); }}
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder="Choisir un produit" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {produits.filter(function (p) { return p.actif; }).map(function (p) {
+                              return (
+                                <SelectItem key={p.id} value={p.id}>
+                                  {p.nom_produit}
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectContent>
+                        </Select>
                       </div>
 
-                      <div className="w-24">
+                      <div className="w-20 space-y-1">
+                        <p className="text-xs text-gray-400">Qte</p>
                         <Input
                           type="number"
                           min={0}
-                          placeholder="Qte"
-                          value={qte || ''}
-                          onChange={function (e) { setQteSuggestion(sugg.nomOriginal, parseInt(e.target.value) || 0); }}
-                          disabled={!produitOk}
+                          placeholder="0"
+                          className="h-9"
+                          value={sugg.quantite || ''}
+                          onChange={function (e) { updateSuggestionQuantite(idx, parseInt(e.target.value) || 0); }}
                         />
                       </div>
 
-                      <Button
-                        onClick={function () { handleAddSuggestion(sugg); }}
-                        disabled={submitting || !produitOk || qte <= 0}
-                        size="sm"
-                        className="bg-purple-600 hover:bg-purple-700"
-                      >
-                        <Plus className="h-4 w-4 mr-1" /> Ajouter
-                      </Button>
+                      <div className="w-20 space-y-1">
+                        <p className="text-xs text-gray-400">Prix</p>
+                        <div className="h-9 px-2 flex items-center bg-gray-50 border rounded-md text-xs font-medium">
+                          {getPrixProduitSelectionne(sugg.produitIdSelectionne)}
+                        </div>
+                      </div>
+
+                      <div className="pt-4">
+                        <Button
+                          onClick={function () { handleAddSuggestion(idx); }}
+                          disabled={submitting || !sugg.produitIdSelectionne || sugg.quantite <= 0}
+                          size="sm"
+                          className="bg-purple-600 hover:bg-purple-700"
+                        >
+                          <Plus className="h-4 w-4 mr-1" /> Ajouter
+                        </Button>
+                      </div>
                     </div>
                   );
                 })}
@@ -341,7 +396,7 @@ export function PreparationInterface({ id }: { id: string }) {
               <div className="flex flex-wrap items-end gap-4">
                 <div className="flex-1 min-w-[200px] space-y-2">
                   <label className="text-xs font-bold text-gray-500 uppercase">Produit</label>
-                  <Select onValueChange={(v) => setSelectedProduitId(v || "")} value={selectedProduitId}>
+                  <Select onValueChange={function (v) { setSelectedProduitId(v || ""); }} value={selectedProduitId}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selectionner un produit" />
                     </SelectTrigger>
@@ -363,7 +418,7 @@ export function PreparationInterface({ id }: { id: string }) {
                     type="number"
                     min={1}
                     value={quantite}
-                    onChange={(e) => setQuantite(parseInt(e.target.value) || 0)}
+                    onChange={function (e) { setQuantite(parseInt(e.target.value) || 0); }}
                   />
                 </div>
 
