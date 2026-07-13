@@ -64,14 +64,18 @@ export async function GET() {
     }
   }
 
-  // 3. Commandes DEJA LIVREES aujourd'hui (table commandes)
+  // 3. Commandes DEJA LIVREES aujourd'hui (via date_livraison_effective)
+  const debutJour = dateAujourdhui + 'T00:00:00'
+  const finJour = dateAujourdhui + 'T23:59:59'
+
   const { data: commandesLivrees } = await supabase
     .from('commandes')
     .select('client_id, statut')
     .eq('societe_id', societe_id)
     .eq('livreur_assigne_id', livreur_id)
     .in('statut', ['LIVRE_PAYE', 'LIVRE_DETTE'])
-    .eq('date_livraison', dateAujourdhui)
+    .gte('date_livraison_effective', debutJour)
+    .lte('date_livraison_effective', finJour)
 
   const nb_commandes_livrees = commandesLivrees ? commandesLivrees.length : 0
   const nb_commandes_restantes = nb_livraisons
