@@ -66,7 +66,7 @@ function parseParfums(texte: string | null | undefined): string[] {
 
 function trouverProduit(nomParfum: string, produits: ProduitLocal[]): ProduitLocal | null {
   const nomLower = nomParfum.toLowerCase();
-  var trouve = produits.find(function (p) {
+  const trouve = produits.find(function (p) {
     return p.nom_produit.toLowerCase() === nomLower;
   });
   return trouve || null;
@@ -91,21 +91,19 @@ export function PreparationInterface({ id }: { id: string }) {
     return produits.find(function (p) { return p.id === selectedProduitId; });
   }, [selectedProduitId, produits]);
 
-  // Extraire les parfums de la commande
   const parfumsCommande = useMemo(function () {
     if (!commande) return [] as string[];
-    var parfumsYaourt = parseParfums(commande.parfums_yaourt_souhaites);
-    var parfumsJus = parseParfums(commande.parfums_jus_souhaites);
+    const parfumsYaourt = parseParfums(commande.parfums_yaourt_souhaites);
+    const parfumsJus = parseParfums(commande.parfums_jus_souhaites);
     return parfumsYaourt.concat(parfumsJus);
   }, [commande]);
 
-  // Initialiser les suggestions quand commande + produits sont charges
   useEffect(function () {
     if (parfumsCommande.length === 0 || produits.length === 0) return;
     if (suggestionStates.length > 0) return;
 
-    var initStates = parfumsCommande.map(function (nom) {
-      var match = trouverProduit(nom, produits as ProduitLocal[]);
+    const initStates = parfumsCommande.map(function (nom) {
+      const match = trouverProduit(nom, produits as ProduitLocal[]);
       return {
         nomOriginal: nom,
         produitIdSelectionne: match ? match.id : '',
@@ -119,7 +117,7 @@ export function PreparationInterface({ id }: { id: string }) {
   if (!commande) return <div className="text-center py-12 text-red-500 font-bold">Commande introuvable</div>;
 
   function updateSuggestionProduit(index: number, newProduitId: string) {
-    var newStates = suggestionStates.map(function (s, i) {
+    const newStates = suggestionStates.map(function (s, i) {
       if (i === index) {
         return { nomOriginal: s.nomOriginal, produitIdSelectionne: newProduitId, quantite: s.quantite };
       }
@@ -129,7 +127,7 @@ export function PreparationInterface({ id }: { id: string }) {
   }
 
   function updateSuggestionQuantite(index: number, newQte: number) {
-    var newStates = suggestionStates.map(function (s, i) {
+    const newStates = suggestionStates.map(function (s, i) {
       if (i === index) {
         return { nomOriginal: s.nomOriginal, produitIdSelectionne: s.produitIdSelectionne, quantite: newQte };
       }
@@ -138,8 +136,8 @@ export function PreparationInterface({ id }: { id: string }) {
     setSuggestionStates(newStates);
   }
 
-  var handleAddSuggestion = async function (index: number) {
-    var sugg = suggestionStates[index];
+  const handleAddSuggestion = async function (index: number) {
+    const sugg = suggestionStates[index];
     if (!sugg || !sugg.produitIdSelectionne) {
       toast.error("Selectionner un produit");
       return;
@@ -149,14 +147,14 @@ export function PreparationInterface({ id }: { id: string }) {
       return;
     }
 
-    var produitChoisi = produits.find(function (p) { return p.id === sugg.produitIdSelectionne; });
+    const produitChoisi = produits.find(function (p) { return p.id === sugg.produitIdSelectionne; });
     if (!produitChoisi) {
       toast.error("Produit introuvable");
       return;
     }
 
     setSubmitting(true);
-    var result = await addLigne({
+    const result = await addLigne({
       produit_id: produitChoisi.id,
       quantite: sugg.quantite,
       prix_unitaire: produitChoisi.prix,
@@ -171,7 +169,7 @@ export function PreparationInterface({ id }: { id: string }) {
     setSubmitting(false);
   };
 
-  var handleAddLigne = async function () {
+  const handleAddLigne = async function () {
     if (!selectedProduit) {
       toast.error("Veuillez selectionner un produit");
       return;
@@ -182,7 +180,7 @@ export function PreparationInterface({ id }: { id: string }) {
     }
 
     setSubmitting(true);
-    var result = await addLigne({
+    const result = await addLigne({
       produit_id: selectedProduit.id,
       quantite,
       prix_unitaire: selectedProduit.prix,
@@ -198,11 +196,11 @@ export function PreparationInterface({ id }: { id: string }) {
     setSubmitting(false);
   };
 
-  var handleFinishPreparation = async function () {
+  const handleFinishPreparation = async function () {
     try {
       if (!commande || !user) return;
 
-      var insertResult = await supabase.from('preparations_commande').insert([{
+      const insertResult = await supabase.from('preparations_commande').insert([{
         commande_id: id,
         livreur_id: (commande as CommandeFull).livreur_assigne_id,
         societe_id: user.societe.id,
@@ -214,18 +212,18 @@ export function PreparationInterface({ id }: { id: string }) {
       toast.success("Preparation terminee avec succes");
       router.push('/commandes/' + id);
     } catch (error) {
-      var message = error instanceof Error ? error.message : "Une erreur est survenue";
+      const message = error instanceof Error ? error.message : "Une erreur est survenue";
       toast.error("Erreur lors de la validation", { description: message });
     }
   };
 
-  var handlePassToDelivery = async function () {
+  const handlePassToDelivery = async function () {
     try {
       await updateStatut(id, 'EN_LIVRAISON');
       toast.success("Commande passee en livraison");
       router.push('/commandes/' + id);
     } catch (error) {
-      var message = error instanceof Error ? error.message : "Une erreur est survenue";
+      const message = error instanceof Error ? error.message : "Une erreur est survenue";
       toast.error("Erreur lors du passage en livraison", { description: message });
     }
   };
@@ -236,16 +234,16 @@ export function PreparationInterface({ id }: { id: string }) {
     return "bg-red-500";
   }
 
-  var yaourtPercent = (commande.total_yaourt_commande ?? 0) > 0
+  const yaourtPercent = (commande.total_yaourt_commande ?? 0) > 0
     ? Math.min(100, Math.round(((commande.total_yaourt ?? 0) / (commande.total_yaourt_commande ?? 0)) * 100))
     : 0;
 
-  var jusPercent = (commande.total_jus_commande ?? 0) > 0
+  const jusPercent = (commande.total_jus_commande ?? 0) > 0
     ? Math.min(100, Math.round(((commande.total_jus ?? 0) / (commande.total_jus_commande ?? 0)) * 100))
     : 0;
 
   function getPrixProduitSelectionne(produitId: string): string {
-    var p = produits.find(function (pr) { return pr.id === produitId; });
+    const p = produits.find(function (pr) { return pr.id === produitId; });
     if (p) return p.prix.toLocaleString() + ' Ar';
     return '—';
   }
