@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
   Truck,
+  LayoutDashboard,
   Wallet,
   Users,
   History
@@ -12,6 +13,7 @@ import {
 
 const navigation = [
   { name: 'Tournée', href: '/tournee', icon: Truck },
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Caisse', href: '/caisse', icon: Wallet },
   { name: 'Clients', href: '/mes-clients', icon: Users },
   { name: 'Histo.', href: '/historique', icon: History },
@@ -33,11 +35,4 @@ export function BottomNav() {
               isActive ? "text-blue-600" : "text-gray-400 hover:text-gray-600"
             )}
           >
-            <item.icon className={cn("h-6 w-6", isActive && "stroke-[2.5px]")} />
-            <span className="text-[10px] font-bold uppercase tracking-tight">{item.name}</span>
-          </Link>
-        );
-      })}
-    </nav>
-  );
-}
+            <item.icon className={cn("h-6 w-6", isActive && "stroke-[2.5px]")} 
