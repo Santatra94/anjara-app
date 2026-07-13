@@ -74,8 +74,7 @@ export async function GET() {
     .eq('societe_id', societe_id)
     .eq('livreur_assigne_id', livreur_id)
     .in('statut', ['LIVRE_PAYE', 'LIVRE_DETTE'])
-    .gte('date_livraison_effective', debutJour)
-    .lte('date_livraison_effective', finJour)
+    .eq('date_livraison', dateAujourdhui)
 
   const nb_commandes_livrees = commandesLivrees ? commandesLivrees.length : 0
   const nb_commandes_restantes = nb_livraisons
