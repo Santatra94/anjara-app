@@ -65,9 +65,6 @@ export async function GET() {
   }
 
   // 3. Commandes DEJA LIVREES aujourd'hui (table commandes)
-  const debutJour = dateAujourdhui + 'T00:00:00'
-  const finJour = dateAujourdhui + 'T23:59:59'
-
   const { data: commandesLivrees } = await supabase
     .from('commandes')
     .select('client_id, statut')
