@@ -113,6 +113,40 @@ export function PreparationInterface({ id }: { id: string }) {
     setSuggestionStates(initStates);
   }, [parfumsCommande, produits, suggestionStates.length]);
 
+  // Preview temps reel : ce qui est deja prepare + ce qui est en cours de saisie
+  const previewYaourtSaisi = useMemo(function () {
+    let total = 0;
+    suggestionStates.forEach(function (s) {
+      if (s.produitIdSelectionne && s.quantite > 0) {
+        const p = produits.find(function (pr) { return pr.id === s.produitIdSelectionne; });
+        if (p && p.categorie === 'YAOURT') {
+          total += s.quantite;
+        }
+      }
+    });
+    return total;
+  }, [suggestionStates, produits]);
+
+  const previewJusSaisi = useMemo(function () {
+    let total = 0;
+    suggestionStates.forEach(function (s) {
+      if (s.produitIdSelectionne && s.quantite > 0) {
+        const p = produits.find(function (pr) { return pr.id === s.produitIdSelectionne; });
+        if (p && p.categorie === 'JUS') {
+          total += s.quantite;
+        }
+      }
+    });
+    return total;
+  }, [suggestionStates, produits]);
+
+  // IDs des produits deja utilises dans les suggestions (pour bloquer dans le formulaire libre)
+  const idsProduitsSuggeres = useMemo(function () {
+    return suggestionStates
+      .map(function (s) { return s.produitIdSelectionne; })
+      .filter(function (id) { return id !== ''; });
+  }, [suggestionStates]);
+
   if (loadingCmd || loadingLignes) return <div className="flex justify-center py-12"><Clock className="animate-spin h-8 w-8 text-blue-500" /></div>;
   if (!commande) return <div className="text-center py-12 text-red-500 font-bold">Commande introuvable</div>;
 
@@ -136,34 +170,42 @@ export function PreparationInterface({ id }: { id: string }) {
     setSuggestionStates(newStates);
   }
 
-  const handleAddSuggestion = async function (index: number) {
-    const sugg = suggestionStates[index];
-    if (!sugg || !sugg.produitIdSelectionne) {
-      toast.error("Selectionner un produit");
-      return;
-    }
-    if (sugg.quantite <= 0) {
-      toast.error("Saisir une quantite superieure a 0");
-      return;
-    }
+  const handleAddAllSuggestions = async function () {
+    const aAjouter = suggestionStates.filter(function (s) {
+      return s.produitIdSelectionne !== '' && s.quantite > 0;
+    });
 
-    const produitChoisi = produits.find(function (p) { return p.id === sugg.produitIdSelectionne; });
-    if (!produitChoisi) {
-      toast.error("Produit introuvable");
+    if (aAjouter.length === 0) {
+      toast.error("Aucune suggestion a ajouter (verifier produit et quantite)");
       return;
     }
 
     setSubmitting(true);
-    const result = await addLigne({
-      produit_id: produitChoisi.id,
-      quantite: sugg.quantite,
-      prix_unitaire: produitChoisi.prix,
-      categorie: produitChoisi.categorie as "YAOURT" | "JUS",
-    });
+    let successCount = 0;
 
-    if (result.success) {
-      toast.success(produitChoisi.nom_produit + " ajoute");
-      updateSuggestionQuantite(index, 0);
+    for (const sugg of aAjouter) {
+      const produitChoisi = produits.find(function (p) { return p.id === sugg.produitIdSelectionne; });
+      if (!produitChoisi) continue;
+
+      const result = await addLigne({
+        produit_id: produitChoisi.id,
+        quantite: sugg.quantite,
+        prix_unitaire: produitChoisi.prix,
+        categorie: produitChoisi.categorie as "YAOURT" | "JUS",
+      });
+
+      if (result.success) {
+        successCount++;
+      }
+    }
+
+    if (successCount > 0) {
+      toast.success(successCount + " produit(s) ajoute(s) a la caisse");
+      // Reset quantites apres ajout
+      const resetStates = suggestionStates.map(function (s) {
+        return { nomOriginal: s.nomOriginal, produitIdSelectionne: s.produitIdSelectionne, quantite: 0 };
+      });
+      setSuggestionStates(resetStates);
       await refreshCmd();
     }
     setSubmitting(false);
@@ -234,12 +276,15 @@ export function PreparationInterface({ id }: { id: string }) {
     return "bg-red-500";
   }
 
+  const totalYaourtActuel = (commande.total_yaourt ?? 0) + previewYaourtSaisi;
+  const totalJusActuel = (commande.total_jus ?? 0) + previewJusSaisi;
+
   const yaourtPercent = (commande.total_yaourt_commande ?? 0) > 0
-    ? Math.min(100, Math.round(((commande.total_yaourt ?? 0) / (commande.total_yaourt_commande ?? 0)) * 100))
+    ? Math.min(100, Math.round((totalYaourtActuel / (commande.total_yaourt_commande ?? 0)) * 100))
     : 0;
 
   const jusPercent = (commande.total_jus_commande ?? 0) > 0
-    ? Math.min(100, Math.round(((commande.total_jus ?? 0) / (commande.total_jus_commande ?? 0)) * 100))
+    ? Math.min(100, Math.round((totalJusActuel / (commande.total_jus_commande ?? 0)) * 100))
     : 0;
 
   function getPrixProduitSelectionne(produitId: string): string {
@@ -247,6 +292,13 @@ export function PreparationInterface({ id }: { id: string }) {
     if (p) return p.prix.toLocaleString() + ' Ar';
     return '—';
   }
+
+  // Produits filtres pour le formulaire libre (retire ceux deja dans les suggestions)
+  const produitsFormulaireLibre = produits.filter(function (p) {
+    if (!p.actif) return false;
+    if (idsProduitsSuggeres.indexOf(p.id) !== -1) return false;
+    return true;
+  });
 
   return (
     <div className="space-y-6">
@@ -279,7 +331,7 @@ export function PreparationInterface({ id }: { id: string }) {
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="font-medium text-blue-700">Yaourts demandes :</span>
-                    <span className="font-bold">{commande.total_yaourt_commande}</span>
+                    <span className="font-bold">{totalYaourtActuel} / {commande.total_yaourt_commande}</span>
                   </div>
                   <p className="text-xs text-muted-foreground italic">Parfums : {commande.parfums_yaourt_souhaites || "—"}</p>
                   <div className="h-2 w-full bg-white rounded-full overflow-hidden border">
@@ -288,12 +340,15 @@ export function PreparationInterface({ id }: { id: string }) {
                       style={{ width: yaourtPercent + '%' }}
                     />
                   </div>
+                  {previewYaourtSaisi > 0 && (
+                    <p className="text-xs text-purple-600 italic">+ {previewYaourtSaisi} en cours de saisie</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="font-medium text-orange-700">Jus demandes :</span>
-                    <span className="font-bold">{commande.total_jus_commande}</span>
+                    <span className="font-bold">{totalJusActuel} / {commande.total_jus_commande}</span>
                   </div>
                   <p className="text-xs text-muted-foreground italic">Parfums : {commande.parfums_jus_souhaites || "—"}</p>
                   <div className="h-2 w-full bg-white rounded-full overflow-hidden border">
@@ -302,12 +357,15 @@ export function PreparationInterface({ id }: { id: string }) {
                       style={{ width: jusPercent + '%' }}
                     />
                   </div>
+                  {previewJusSaisi > 0 && (
+                    <p className="text-xs text-purple-600 italic">+ {previewJusSaisi} en cours de saisie</p>
+                  )}
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {(commande.total_yaourt ?? 0) < (commande.total_yaourt_commande ?? 0) && (
+          {(commande.total_yaourt ?? 0) < (commande.total_yaourt_commande ?? 0) && previewYaourtSaisi === 0 && (
             <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex gap-3 text-amber-800">
               <AlertCircle className="h-5 w-5 shrink-0" />
               <p className="text-xs">Attention : la preparation des yaourts est incomplete par rapport a la demande.</p>
@@ -368,20 +426,19 @@ export function PreparationInterface({ id }: { id: string }) {
                           {getPrixProduitSelectionne(sugg.produitIdSelectionne)}
                         </div>
                       </div>
-
-                      <div className="pt-4">
-                        <Button
-                          onClick={function () { handleAddSuggestion(idx); }}
-                          disabled={submitting || !sugg.produitIdSelectionne || sugg.quantite <= 0}
-                          size="sm"
-                          className="bg-purple-600 hover:bg-purple-700"
-                        >
-                          <Plus className="h-4 w-4 mr-1" /> Ajouter
-                        </Button>
-                      </div>
                     </div>
                   );
                 })}
+
+                <div className="pt-2">
+                  <Button
+                    onClick={handleAddAllSuggestions}
+                    disabled={submitting}
+                    className="w-full bg-purple-600 hover:bg-purple-700"
+                  >
+                    <Plus className="h-4 w-4 mr-2" /> Ajouter tous les produits saisis
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -389,6 +446,7 @@ export function PreparationInterface({ id }: { id: string }) {
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Autre produit (libre)</CardTitle>
+              <p className="text-xs text-gray-500">Ne montre que les produits non presents dans les suggestions</p>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap items-end gap-4">
@@ -399,13 +457,19 @@ export function PreparationInterface({ id }: { id: string }) {
                       <SelectValue placeholder="Selectionner un produit" />
                     </SelectTrigger>
                     <SelectContent>
-                      {produits.filter(function (p) { return p.actif; }).map(function (p) {
-                        return (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.nom_produit} ({p.prix.toLocaleString()} Ar)
-                          </SelectItem>
-                        );
-                      })}
+                      {produitsFormulaireLibre.length === 0 ? (
+                        <div className="px-3 py-2 text-sm text-gray-400 italic">
+                          Aucun autre produit disponible
+                        </div>
+                      ) : (
+                        produitsFormulaireLibre.map(function (p) {
+                          return (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.nom_produit} ({p.prix.toLocaleString()} Ar)
+                            </SelectItem>
+                          );
+                        })
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
