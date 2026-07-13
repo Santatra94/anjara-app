@@ -18,8 +18,6 @@ import type {
   PeriodeFiltreType,
 } from '@/types/dashboard'
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
 function formatMontant(montant: number): string {
   return montant.toLocaleString('fr-MG') + ' Ar'
 }
@@ -27,15 +25,13 @@ function formatMontant(montant: number): string {
 function getBadgeStatut(statut: string): { label: string; classe: string } {
   const map: Record<string, { label: string; classe: string }> = {
     EN_ATTENTE: { label: 'En attente', classe: 'bg-gray-100 text-gray-600' },
-    EN_PREPARATION: { label: 'En préparation', classe: 'bg-violet-100 text-violet-700' },
-    PRET: { label: 'Prêt', classe: 'bg-blue-100 text-blue-700' },
-    LIVRE_PAYE: { label: 'Livré payé', classe: 'bg-green-100 text-green-700' },
-    LIVRE_DETTE: { label: 'Livré dette', classe: 'bg-orange-100 text-orange-700' },
+    EN_PREPARATION: { label: 'En preparation', classe: 'bg-violet-100 text-violet-700' },
+    PRET: { label: 'Pret', classe: 'bg-blue-100 text-blue-700' },
+    LIVRE_PAYE: { label: 'Livre paye', classe: 'bg-green-100 text-green-700' },
+    LIVRE_DETTE: { label: 'Livre dette', classe: 'bg-orange-100 text-orange-700' },
   }
   return map[statut] || { label: statut, classe: 'bg-gray-100 text-gray-600' }
 }
-
-// ─── Composant StatCard ────────────────────────────────────────────────────────
 
 interface StatCardProps {
   titre: string
@@ -68,8 +64,6 @@ function StatCard({ titre, valeur, sousTitre, icone, couleur }: StatCardProps) {
   )
 }
 
-// ─── Composant FiltrePeriode ───────────────────────────────────────────────────
-
 interface FiltrePeriodeProps {
   type: PeriodeFiltreType
   debut: string
@@ -82,8 +76,8 @@ function FiltrePeriode({ type, debut, fin, onChange }: FiltrePeriodeProps) {
   const options: { value: PeriodeFiltreType; label: string }[] = [
     { value: 'aujourd_hui', label: "Aujourd'hui" },
     { value: 'ce_mois', label: 'Ce mois' },
-    { value: 'mois_precedent', label: 'Mois précédent' },
-    { value: 'personnalise', label: 'Personnalisé' },
+    { value: 'mois_precedent', label: 'Mois precedent' },
+    { value: 'personnalise', label: 'Personnalise' },
   ]
 
   function handleType(newType: PeriodeFiltreType) {
@@ -123,7 +117,7 @@ function FiltrePeriode({ type, debut, fin, onChange }: FiltrePeriodeProps) {
             onChange={(e) => onChange('personnalise', e.target.value, fin)}
             className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm"
           />
-          <span className="text-gray-400 text-sm">→</span>
+          <span className="text-gray-400 text-sm">to</span>
           <input
             type="date"
             value={fin}
@@ -135,8 +129,6 @@ function FiltrePeriode({ type, debut, fin, onChange }: FiltrePeriodeProps) {
     </div>
   )
 }
-
-// ─── Page principale ───────────────────────────────────────────────────────────
 
 export default function DashboardAdminPage() {
   const today = new Date()
@@ -162,7 +154,7 @@ export default function DashboardAdminPage() {
       const json = await res.json()
       setData(json)
     } catch {
-      setErreur('Impossible de charger les données')
+      setErreur('Impossible de charger les donnees')
     } finally {
       setLoading(false)
     }
@@ -178,7 +170,6 @@ export default function DashboardAdminPage() {
     setDateFin(fin)
   }
 
-  // ── Rendu loading ──
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-96">
@@ -190,7 +181,6 @@ export default function DashboardAdminPage() {
     )
   }
 
-  // ── Rendu erreur ──
   if (erreur) {
     return (
       <div className="flex items-center justify-center min-h-96">
@@ -201,7 +191,7 @@ export default function DashboardAdminPage() {
             onClick={chargerDonnees}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm"
           >
-            Réessayer
+            Reessayer
           </button>
         </div>
       </div>
@@ -215,7 +205,6 @@ export default function DashboardAdminPage() {
   return (
     <div className="space-y-6 p-6 max-w-7xl mx-auto">
 
-      {/* ── En-tête ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
@@ -225,4 +214,113 @@ export default function DashboardAdminPage() {
         </div>
         <button
           onClick={chargerDonnees}
-          className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm 
+          className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+        >
+          <RefreshCw className="w-4 h-4" />
+          Actualiser
+        </button>
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <p className="text-xs text-gray-500 font-medium mb-3 uppercase tracking-wide">Periode</p>
+        <FiltrePeriode
+          type={filtrePeriode}
+          debut={dateDebut}
+          fin={dateFin}
+          onChange={handleFiltreChange}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <StatCard
+          titre="CA de la periode"
+          valeur={formatMontant(data.ca_periode)}
+          sousTitre={`Du ${format(new Date(dateDebut), 'd MMM', { locale: fr })} au ${format(new Date(dateFin), 'd MMM', { locale: fr })}`}
+          icone={<TrendingUp className="w-5 h-5" />}
+          couleur="bleu"
+        />
+        <StatCard
+          titre="Commandes du jour"
+          valeur={String(nbCommandesJour)}
+          sousTitre={`${data.commandes_par_statut['LIVRE_PAYE'] || 0} payees / ${data.commandes_par_statut['LIVRE_DETTE'] || 0} en dette`}
+          icone={<ShoppingBag className="w-5 h-5" />}
+          couleur="violet"
+        />
+        <StatCard
+          titre="Dette totale en cours"
+          valeur={formatMontant(data.dette_totale)}
+          sousTitre="Toutes commandes confondues"
+          icone={<AlertCircle className="w-5 h-5" />}
+          couleur="orange"
+        />
+        <StatCard
+          titre="Clients actifs"
+          valeur={String(data.top5_clients.length)}
+          sousTitre="Avec dette en cours"
+          icone={<Users className="w-5 h-5" />}
+          couleur="vert"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+
+        <div className="xl:col-span-2 bg-white rounded-xl border border-gray-200 p-5">
+          <h2 className="text-sm font-semibold text-gray-700 mb-4">
+            CA sur 30 jours
+          </h2>
+          <GraphiqueCA data={data.graphique_ca} />
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <h2 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+            <Package className="w-4 h-4 text-violet-500" />
+            Production du jour
+          </h2>
+          {data.production ? (
+            <div className="space-y-4">
+              <div className="rounded-lg bg-violet-50 p-4 text-center">
+                <p className="text-xs text-violet-500 font-medium uppercase tracking-wide">Yaourts</p>
+                <p className="text-3xl font-bold text-violet-700 mt-1">
+                  {Number(data.production.total_yaourt_a_produire).toLocaleString()}
+                </p>
+                <p className="text-xs text-violet-400 mt-0.5">unites a produire</p>
+              </div>
+              <div className="rounded-lg bg-blue-50 p-4 text-center">
+                <p className="text-xs text-blue-500 font-medium uppercase tracking-wide">Jus</p>
+                <p className="text-3xl font-bold text-blue-700 mt-1">
+                  {Number(data.production.total_jus_a_produire).toLocaleString()}
+                </p>
+                <p className="text-xs text-blue-400 mt-0.5">unites a produire</p>
+              </div>
+              <div className="flex justify-between text-xs text-gray-500 pt-2 border-t border-gray-100">
+                <span>{data.production.nb_commandes} commandes</span>
+                <span>{data.production.nb_clients} clients</span>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-32 text-gray-400 text-sm">
+              Aucune production aujourd&apos;hui
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <h2 className="text-sm font-semibold text-gray-700 mb-4">
+          Commandes par statut - periode selectionnee
+        </h2>
+        {Object.keys(data.commandes_par_statut).length === 0 ? (
+          <p className="text-sm text-gray-400">Aucune commande sur cette periode</p>
+        ) : (
+          <div className="flex flex-wrap gap-3">
+            {Object.entries(data.commandes_par_statut).map(([statut, nb]) => {
+              const badge = getBadgeStatut(statut)
+              return (
+                <div key={statut} className={`flex items-center gap-2 px-3 py-2 rounded-lg ${badge.classe}`}>
+                  <span className="text-sm font-medium">{badge.label}</span>
+                  <span className="text-lg font-bold">{nb}</span>
+                </div>
+              )
+            })}
+          </div>
+        
