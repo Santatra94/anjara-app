@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 
 const navigation = [
-  { name: 'Tournée', href: '/tournee', icon: Truck },
+  { name: 'Tournee', href: '/tournee', icon: Truck },
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Caisse', href: '/caisse', icon: Wallet },
   { name: 'Clients', href: '/mes-clients', icon: Users },
