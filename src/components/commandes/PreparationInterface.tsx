@@ -45,17 +45,17 @@ import Link from "next/link";
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
-type Produit = {
+type ProduitLocal = {
   id: string;
   nom_produit: string;
   prix: number;
-  categorie: string;
+  categorie: "YAOURT" | "JUS";
   actif: boolean;
 };
 
 type Suggestion = {
   nomOriginal: string;
-  produit: Produit | null;
+  produit: ProduitLocal | null;
 };
 
 function parseParfums(texte: string | null | undefined): string[] {
@@ -63,7 +63,7 @@ function parseParfums(texte: string | null | undefined): string[] {
   return texte.split(',').map(function (s) { return s.trim(); }).filter(function (s) { return s.length > 0; });
 }
 
-function trouverProduit(nomParfum: string, produits: Produit[]): Produit | null {
+function trouverProduit(nomParfum: string, produits: ProduitLocal[]): ProduitLocal | null {
   const nomLower = nomParfum.toLowerCase();
   const trouve = produits.find(function (p) {
     return p.nom_produit.toLowerCase() === nomLower;
@@ -90,7 +90,6 @@ export function PreparationInterface({ id }: { id: string }) {
     return produits.find(function (p) { return p.id === selectedProduitId; });
   }, [selectedProduitId, produits]);
 
-  // Extraire les suggestions depuis la commande
   const suggestions = useMemo(function () {
     if (!commande) return [] as Suggestion[];
     const parfumsYaourt = parseParfums(commande.parfums_yaourt_souhaites);
@@ -99,7 +98,7 @@ export function PreparationInterface({ id }: { id: string }) {
     return tousParfums.map(function (nom) {
       return {
         nomOriginal: nom,
-        produit: trouverProduit(nom, produits as Produit[]),
+        produit: trouverProduit(nom, produits as ProduitLocal[]),
       };
     });
   }, [commande, produits]);
