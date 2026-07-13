@@ -63,6 +63,86 @@
 
 ## 📅 Journal de travail
 
+### 13/07/2026 — Session Dashboards + Améliorations (PROMPT 6)
+
+**Réalisations majeures**
+- ✅ **Dashboard ADMIN/GERANT complet** (`/`)
+  - CA de la période avec filtres (Aujourd'hui / Ce mois / Mois précédent)
+  - Cards stats (CA, commandes, dette, clients)
+  - Graphique CA sur 30 jours (Recharts, courbe smooth)
+  - Tableau performance livreurs
+  - Top 5 clients par dette
+- ✅ **Dashboard LIVREUR mobile** (`/dashboard`)
+  - Caisse du jour à reverser (card dégradé)
+  - Livrées vs restantes
+  - Dettes en cours
+  - Clients visités aujourd'hui
+  - Préparations/Livraisons/Recouvrements
+- ✅ **Bouton Dashboard dans BottomNav livreur**
+- ✅ **Redirection LIVREUR /** → **/dashboard** au login
+- ✅ **Icônes PWA** (icon-192.png + icon-512.png uploadées)
+
+**Améliorations**
+- ✅ **Préparation commande — suggestions intelligentes** :
+  - Extraction automatique des parfums de la commande
+  - Suggestions modifiables (dropdown produit + qté)
+  - Bouton unique "Ajouter tous les produits saisis"
+  - Preview temps réel dans les barres de progression
+  - Formulaire libre exclut les produits déjà suggérés
+- ✅ **Trigger SQL `date_livraison_effective`** créé
+  - Fonction `fn_set_date_livraison_effective()`
+  - Trigger BEFORE UPDATE sur commandes
+  - Rattrapage des données existantes (toutes les commandes NULL)
+
+**Fichiers créés**
+- `src/types/dashboard.ts`
+- `src/components/dashboard/StatCard.tsx`
+- `src/components/dashboard/GraphiqueCA.tsx`
+- `src/app/api/dashboard/admin/route.ts`
+- `src/app/api/dashboard/livreur/route.ts`
+- `src/app/(dashboard)/page.tsx` (remplacé)
+- `public/icon-192.png` + `public/icon-512.png`
+
+**Fichiers modifiés**
+- `src/components/livreur/BottomNav.tsx` (+ Dashboard)
+- `src/app/(dashboard)/layout.tsx` (redirect livreur)
+- `src/components/commandes/PreparationInterface.tsx` (suggestions)
+- `package.json` (recharts ajouté)
+
+**Bugs corrigés**
+- Filtre timestamp `date_encaissement` (ajout T00:00:00 / T23:59:59)
+- Table `utilisateurs` (pas `profils`)
+- Comptage livraisons via `date_livraison_effective` (avec trigger correct)
+
+**Bugs découverts documentés**
+- ⚠️ SWC parser Next.js 14 sensible aux :
+  - Caractères Unicode dans commentaires (`──`, accents)
+  - Ternaires imbriqués dans className
+  - Syntaxe Tailwind arbitraire complexe (`shadow-[0_-1px_10px_rgba...]`)
+  - **Règle** : préférer helpers séparés + éviter accents dans les strings
+
+**Durée** : ~6h (avec debug SWC + refonte préparation)
+
+---
+
+## 🔜 TODO Prochaine session
+
+### 🥇 Priorité 1 — Interface mobile ADMIN/GERANT (~4-5h)
+- Refonte DashboardShell (sidebar → drawer)
+- Nouveau BottomNav pour ADMIN
+- Tableaux → cards mobiles
+- Modales → bottom sheets
+
+### 🥈 Priorité 2 — PROMPT 7 : Module Dépenses (~3h)
+- Table `depenses` avec catégories
+- CRUD ADMIN/GERANT
+- Onglet Finance : CA - Dépenses = Bénéfice
+
+### 🥉 Priorité 3 — PROMPT 8 : Module Stock (~4h)
+- Table `mouvements_stock`
+- Interface production
+- Alertes stock faible
+
 ### 12/07/2026 — Session marathon (15h → 21h)
 
 **Bugs critiques résolus**
