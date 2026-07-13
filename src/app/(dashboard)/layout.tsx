@@ -21,7 +21,7 @@ export default async function DashboardLayout({
     .single();
 
   if (profil?.role === 'LIVREUR') {
-    redirect('/tournee');
+    redirect('/dashboard');
   }
 
   return <DashboardShell>{children}</DashboardShell>;
