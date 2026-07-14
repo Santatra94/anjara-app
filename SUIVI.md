@@ -63,6 +63,42 @@
 
 ## 📅 Journal de travail
 
+### 14/07/2026 — Interface mobile ADMIN/GERANT
+
+**Réalisations**
+- ✅ **BottomNavAdmin** créé (Dashboard / Commandes / Clients / Livreurs / Plus)
+- ✅ **Menu "Plus"** avec Produits / Zones / Types PDV / Déconnexion (drawer bas)
+- ✅ **Sidebar cachée sur mobile** (hidden md:flex)
+- ✅ **6 pages transformées en cards mobiles** (tableau conservé desktop) :
+  - Commandes (avec badges statut + boutons Voir/Préparer)
+  - Clients (téléphone cliquable, avatar type PDV)
+  - Livreurs (avatar bleu, email/tel cliquables)
+  - Produits (avatar coloré par catégorie YAOURT/JUS)
+  - Zones (compact, icône MapPin)
+  - Types PDV (compact, icône Store)
+- ✅ **Titres responsive** (text-xl md:text-2xl)
+- ✅ **Boutons "Ajouter" pleine largeur** sur mobile
+
+**Fichiers créés**
+- `src/components/layout/BottomNavAdmin.tsx`
+
+**Fichiers modifiés**
+- `src/components/layout/DashboardShell.tsx` (intégration BottomNav)
+- `src/components/layout/Sidebar.tsx` (hidden md:flex)
+- `src/components/commandes/CommandesList.tsx` (double vue)
+- `src/app/(dashboard)/clients/page.tsx` (double vue)
+- `src/app/(dashboard)/livreurs/page.tsx` (double vue)
+- `src/app/(dashboard)/produits/page.tsx` (double vue)
+- `src/app/(dashboard)/zones/page.tsx` (double vue)
+- `src/app/(dashboard)/types-pdv/page.tsx` (double vue)
+
+**TODO enregistrés pour plus tard**
+- ⚠️ Modales création → bottom sheets sur mobile
+- ⚠️ Header mobile compact
+- ⚠️ ADMIN/GERANT peut effectuer des livraisons (comme LIVREUR)
+
+**Durée** : ~2h30
+
 ### 13/07/2026 — Session Dashboards + Améliorations (PROMPT 6)
 
 **Réalisations majeures**
