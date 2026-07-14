@@ -19,7 +19,7 @@ export function useLivreurs() {
       .from('utilisateurs')
       .select('*, zone:zones(*)')
       .eq('societe_id', user.societe.id)
-      .eq('role', 'LIVREUR')
+      .in('role', ['LIVREUR', 'ADMIN', 'GERANT'])
       .eq('is_archived', false)
       .order('nom');
 
