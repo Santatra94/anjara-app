@@ -15,7 +15,8 @@ import {
   MapPin,
   Store,
   LogOut,
-  X
+  X,
+  Route,
 } from 'lucide-react';
 
 const navigation = [
@@ -26,6 +27,7 @@ const navigation = [
 ];
 
 const menuPlus = [
+  { name: 'Tournee du jour', href: '/tournee-admin', icon: Route },
   { name: 'Produits', href: '/produits', icon: Package },
   { name: 'Zones', href: '/zones', icon: MapPin },
   { name: 'Types de PDV', href: '/types-pdv', icon: Store },
@@ -67,17 +69,32 @@ export function BottomNavAdmin() {
           <div className="p-2">
             {menuPlus.map(function (item) {
               const Icon = item.icon;
+              const isActive = pathname === item.href;
               return (
                 <Link
                   key={item.name}
                   href={item.href}
                   onClick={fermerMenu}
-                  className="flex items-center gap-3 p-4 rounded-lg hover:bg-gray-50"
+                  className={cn(
+                    'flex items-center gap-3 p-4 rounded-lg hover:bg-gray-50',
+                    isActive && 'bg-blue-50'
+                  )}
                 >
-                  <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
-                    <Icon className="h-5 w-5 text-blue-600" />
+                  <div className={cn(
+                    'w-10 h-10 rounded-full flex items-center justify-center',
+                    isActive ? 'bg-blue-600' : 'bg-blue-50'
+                  )}>
+                    <Icon className={cn(
+                      'h-5 w-5',
+                      isActive ? 'text-white' : 'text-blue-600'
+                    )} />
                   </div>
-                  <span className="text-sm font-medium text-gray-900">{item.name}</span>
+                  <span className={cn(
+                    'text-sm font-medium',
+                    isActive ? 'text-blue-600 font-bold' : 'text-gray-900'
+                  )}>
+                    {item.name}
+                  </span>
                 </Link>
               );
             })}
