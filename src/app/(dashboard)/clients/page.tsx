@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useClients } from '@/hooks/useClients';
 import { Button } from '@/components/ui/button';
-import { Plus, Pencil, Trash2, MapPin, Phone } from 'lucide-react';
+import { Plus, Pencil, Trash2, MapPin, Phone, Store, User } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -52,10 +52,10 @@ export default function ClientsPage() {
     try {
       if (editingClient) {
         await updateClient(editingClient.id, values);
-        toast.success("Client mis à jour");
+        toast.success("Client mis a jour");
       } else {
         await addClient(values);
-        toast.success("Client ajouté");
+        toast.success("Client ajoute");
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Une erreur est survenue";
@@ -67,7 +67,7 @@ export default function ClientsPage() {
     if (!deletingClient) return;
     try {
       await archiveClient(deletingClient.id);
-      toast.success("Client archivé");
+      toast.success("Client archive");
       setDeletingClient(null);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Une erreur est survenue";
@@ -78,17 +78,93 @@ export default function ClientsPage() {
   return (
     <ProtectedRoute allowedRoles={['ADMIN', 'GERANT']}>
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Clients (PDV)</h1>
-            <p className="text-muted-foreground">Gérez vos points de vente et leur localisation.</p>
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight">Clients (PDV)</h1>
+            <p className="text-muted-foreground text-xs md:text-sm">Gerez vos points de vente.</p>
           </div>
-          <Button onClick={handleAdd}>
+          <Button onClick={handleAdd} className="w-full md:w-auto">
             <Plus className="mr-2 h-4 w-4" /> Ajouter un client
           </Button>
         </div>
 
-        <div className="rounded-md border bg-white">
+        {/* VUE MOBILE - Cards */}
+        <div className="md:hidden space-y-3">
+          {loading ? (
+            Array.from({ length: 5 }).map(function (_, i) {
+              return (
+                <div key={i} className="h-32 animate-pulse bg-white rounded-xl border" />
+              );
+            })
+          ) : clients.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground italic bg-white rounded-xl border">
+              Aucun client trouve.
+            </div>
+          ) : (
+            clients.map(function (client) {
+              return (
+                <div key={client.id} className="bg-white rounded-xl border shadow-sm overflow-hidden">
+                  <div className="p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-gray-900 truncate">{client.nom_pdv}</h3>
+                        <p className="text-xs text-gray-500 font-mono">{client.code_client || "—"}</p>
+                      </div>
+                      {client.actif ? (
+                        <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-none shrink-0">Actif</Badge>
+                      ) : (
+                        <Badge variant="secondary" className="shrink-0">Inactif</Badge>
+                      )}
+                    </div>
+
+                    <div className="space-y-1.5 border-t pt-3">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Store className="h-4 w-4 text-gray-400 shrink-0" />
+                        <span className="text-gray-600">{client.type_pdv?.nom_type || "—"}</span>
+                      </div>
+
+                      <div className="flex items-start gap-2 text-sm">
+                        <MapPin className="h-4 w-4 text-gray-400 shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-gray-700">{client.zone?.nom || "—"}</p>
+                          {client.localisation && (
+                            <p className="text-xs text-gray-500 truncate">{client.localisation}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {client.nom_responsable && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <User className="h-4 w-4 text-gray-400 shrink-0" />
+                          <span className="text-gray-600">{client.nom_responsable}</span>
+                        </div>
+                      )}
+
+                      {client.telephone && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <Phone className="h-4 w-4 text-gray-400 shrink-0" />
+                          <a href={'tel:' + client.telephone} className="text-blue-600">{client.telephone}</a>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2 border-t pt-3">
+                      <Button variant="outline" size="sm" onClick={function () { handleEdit(client); }} className="flex-1">
+                        <Pencil className="h-4 w-4 mr-1" /> Modifier
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={function () { setDeletingClient(client); }} className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50">
+                        <Trash2 className="h-4 w-4 mr-1" /> Archiver
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* VUE DESKTOP - Tableau */}
+        <div className="hidden md:block rounded-md border bg-white">
           <Table>
             <TableHeader>
               <TableRow>
@@ -107,7 +183,7 @@ export default function ClientsPage() {
                 </TableRow>
               ) : clients.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">Aucun client trouvé.</TableCell>
+                  <TableCell colSpan={6} className="text-center py-8">Aucun client trouve.</TableCell>
                 </TableRow>
               ) : (
                 clients.map((client) => (
@@ -177,7 +253,7 @@ export default function ClientsPage() {
         <AlertDialog open={!!deletingClient} onOpenChange={() => setDeletingClient(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Êtes-vous sûr ?</AlertDialogTitle>
+              <AlertDialogTitle>Etes-vous sur ?</AlertDialogTitle>
               <AlertDialogDescription>
                 Cette action va archiver le client &quot;{deletingClient?.nom_pdv}&quot;. Il ne sera plus visible dans la liste des commandes.
               </AlertDialogDescription>
@@ -193,4 +269,4 @@ export default function ClientsPage() {
       </div>
     </ProtectedRoute>
   );
-}
+                    }
