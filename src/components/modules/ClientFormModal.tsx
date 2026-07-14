@@ -5,12 +5,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { clientSchema } from "@/lib/schemas";
 import * as z from "zod";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   Form,
   FormControl,
   FormField,
@@ -32,6 +26,7 @@ import { Client } from "@/types";
 import { useEffect } from "react";
 import { useZones } from "@/hooks/useZones";
 import { useTypePdvs } from "@/hooks/useTypePdvs";
+import { MobileSheet } from "@/components/ui/mobile-sheet";
 
 type ClientFormValues = z.infer<typeof clientSchema>;
 
@@ -88,151 +83,148 @@ export function ClientFormModal({ open, onOpenChange, onSubmit, initialData }: C
       await onSubmit(values);
       onOpenChange(false);
       form.reset();
-    } catch (error) {
-      console.error(error);
+    } catch {
+      // erreur geree par le parent
     }
   };
 
+  const title = initialData ? "Modifier le client" : "Ajouter un client";
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>{initialData ? "Modifier le client" : "Ajouter un client"}</DialogTitle>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+    <MobileSheet open={open} onOpenChange={onOpenChange} title={title}>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+          <FormField
+            control={form.control}
+            name="nom_pdv"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Nom du PDV</FormLabel>
+                <FormControl>
+                  <Input placeholder="ex: Epicerie du Coin" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <div className="grid grid-cols-2 gap-4">
             <FormField
               control={form.control}
-              name="nom_pdv"
+              name="type_pdv_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nom du PDV</FormLabel>
-                  <FormControl>
-                    <Input placeholder="ex: Épicerie du Coin" {...field} />
-                  </FormControl>
+                  <FormLabel>Type de PDV</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choisir" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {types.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>{t.nom_type}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
             />
-
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="type_pdv_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Type de PDV</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Choisir" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {types.map((t) => (
-                          <SelectItem key={t.id} value={t.id}>{t.nom_type}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="zone_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Zone</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Choisir" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {zones.map((z) => (
-                          <SelectItem key={z.id} value={z.id}>{z.nom}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
             <FormField
               control={form.control}
-              name="nom_responsable"
+              name="zone_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nom du responsable</FormLabel>
-                  <FormControl>
-                    <Input placeholder="ex: Jean Dupont" {...field} value={field.value || ""} />
-                  </FormControl>
+                  <FormLabel>Zone</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choisir" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {zones.map((z) => (
+                        <SelectItem key={z.id} value={z.id}>{z.nom}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
             />
+          </div>
 
-            <FormField
-              control={form.control}
-              name="telephone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Téléphone</FormLabel>
-                  <FormControl>
-                    <Input placeholder="ex: +261 34 00 000 00" {...field} value={field.value || ""} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <FormField
+            control={form.control}
+            name="nom_responsable"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Nom du responsable</FormLabel>
+                <FormControl>
+                  <Input placeholder="ex: Jean Dupont" {...field} value={field.value || ""} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-            <FormField
-              control={form.control}
-              name="localisation"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Localisation précise</FormLabel>
-                  <FormControl>
-                    <Input placeholder="ex: À côté de la poste" {...field} value={field.value || ""} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <FormField
+            control={form.control}
+            name="telephone"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Telephone</FormLabel>
+                <FormControl>
+                  <Input placeholder="ex: +261 34 00 000 00" {...field} value={field.value || ""} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-            <FormField
-              control={form.control}
-              name="actif"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel>Client actif</FormLabel>
-                  </div>
-                </FormItem>
-              )}
-            />
+          <FormField
+            control={form.control}
+            name="localisation"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Localisation precise</FormLabel>
+                <FormControl>
+                  <Input placeholder="ex: A cote de la poste" {...field} value={field.value || ""} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-            <div className="flex justify-end gap-3 pt-4">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Annuler
-              </Button>
-              <Button type="submit" disabled={form.formState.isSubmitting}>
-                {initialData ? "Mettre à jour" : "Créer"}
-              </Button>
-            </div>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+          <FormField
+            control={form.control}
+            name="actif"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+                <div className="space-y-1 leading-none">
+                  <FormLabel>Client actif</FormLabel>
+                </div>
+              </FormItem>
+            )}
+          />
+
+          <div className="flex justify-end gap-3 pt-4">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Annuler
+            </Button>
+            <Button type="submit" disabled={form.formState.isSubmitting}>
+              {initialData ? "Mettre a jour" : "Creer"}
+            </Button>
+          </div>
+        </form>
+      </Form>
+    </MobileSheet>
   );
 }
