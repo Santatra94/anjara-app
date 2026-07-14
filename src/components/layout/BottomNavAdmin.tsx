@@ -17,6 +17,7 @@ import {
   LogOut,
   X,
   Route,
+  TrendingDown,
 } from 'lucide-react';
 
 const navigation = [
@@ -28,6 +29,7 @@ const navigation = [
 
 const menuPlus = [
   { name: 'Tournee du jour', href: '/tournee-admin', icon: Route },
+  { name: 'Depenses', href: '/depenses', icon: TrendingDown },
   { name: 'Produits', href: '/produits', icon: Package },
   { name: 'Zones', href: '/zones', icon: MapPin },
   { name: 'Types de PDV', href: '/types-pdv', icon: Store },
@@ -80,19 +82,25 @@ export function BottomNavAdmin() {
                     isActive && 'bg-blue-50'
                   )}
                 >
-                  <div className={cn(
-                    'w-10 h-10 rounded-full flex items-center justify-center',
-                    isActive ? 'bg-blue-600' : 'bg-blue-50'
-                  )}>
-                    <Icon className={cn(
-                      'h-5 w-5',
-                      isActive ? 'text-white' : 'text-blue-600'
-                    )} />
+                  <div
+                    className={cn(
+                      'w-10 h-10 rounded-full flex items-center justify-center',
+                      isActive ? 'bg-blue-600' : 'bg-blue-50'
+                    )}
+                  >
+                    <Icon
+                      className={cn(
+                        'h-5 w-5',
+                        isActive ? 'text-white' : 'text-blue-600'
+                      )}
+                    />
                   </div>
-                  <span className={cn(
-                    'text-sm font-medium',
-                    isActive ? 'text-blue-600 font-bold' : 'text-gray-900'
-                  )}>
+                  <span
+                    className={cn(
+                      'text-sm font-medium',
+                      isActive ? 'text-blue-600 font-bold' : 'text-gray-900'
+                    )}
+                  >
                     {item.name}
                   </span>
                 </Link>
@@ -115,7 +123,9 @@ export function BottomNavAdmin() {
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 h-16 flex items-center justify-around px-1 z-30 md:hidden">
         {navigation.map(function (item) {
           const Icon = item.icon;
-          const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href + '/'));
+          const isActive =
+            pathname === item.href ||
+            (item.href !== '/' && pathname.startsWith(item.href + '/'));
           return (
             <Link
               key={item.name}
@@ -126,13 +136,17 @@ export function BottomNavAdmin() {
               )}
             >
               <Icon className={cn('h-5 w-5', isActive && 'stroke-[2.5px]')} />
-              <span className="text-[10px] font-bold uppercase tracking-tight">{item.name}</span>
+              <span className="text-[10px] font-bold uppercase tracking-tight">
+                {item.name}
+              </span>
             </Link>
           );
         })}
 
         <button
-          onClick={function () { setMenuOuvert(true); }}
+          onClick={function () {
+            setMenuOuvert(true);
+          }}
           className={cn(
             'flex flex-col items-center justify-center flex-1 h-full gap-1 transition-colors',
             menuOuvert ? 'text-blue-600' : 'text-gray-400'
