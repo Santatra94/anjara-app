@@ -2,6 +2,7 @@
 
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
+import { BottomNavAdmin } from '@/components/layout/BottomNavAdmin';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
@@ -12,12 +13,14 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
         <div className="flex flex-1 overflow-hidden">
           <Sidebar />
-          <main className="flex-1 overflow-y-auto p-4 md:p-8">
+          <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-24 md:pb-8">
             <div className="max-w-7xl mx-auto">
               {children}
             </div>
           </main>
         </div>
+
+        <BottomNavAdmin />
       </div>
     </ProtectedRoute>
   );
