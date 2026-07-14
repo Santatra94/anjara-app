@@ -20,7 +20,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Search, Eye, Package, Truck, Filter, MapPin, Calendar } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Eye,
+  Package,
+  Truck,
+  Filter,
+  MapPin,
+  Calendar,
+  CreditCard,
+  RefreshCcw,
+} from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -57,6 +68,7 @@ export function CommandesList() {
         </Button>
       </div>
 
+      {/* Filtres */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-white p-3 md:p-4 rounded-xl border shadow-sm">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -80,6 +92,7 @@ export function CommandesList() {
             <SelectItem value="EN_ATTENTE">En attente</SelectItem>
             <SelectItem value="PREPARATION">Preparation</SelectItem>
             <SelectItem value="EN_LIVRAISON">En livraison</SelectItem>
+            <SelectItem value="PRETE">Prete</SelectItem>
             <SelectItem value="LIVRE_PAYE">Livre (Paye)</SelectItem>
             <SelectItem value="LIVRE_DETTE">Livre (Dette)</SelectItem>
             <SelectItem value="ANNULE">Annule</SelectItem>
@@ -164,16 +177,42 @@ export function CommandesList() {
                     </div>
                   </div>
 
-                  <div className="flex gap-2 border-t pt-3">
+                  {/* Boutons actions mobile */}
+                  <div className="flex gap-2 border-t pt-3 flex-wrap">
                     <Button variant="outline" size="sm" asChild className="flex-1">
                       <Link href={'/commandes/' + commande.id}>
                         <Eye className="h-4 w-4 mr-1" /> Voir
                       </Link>
                     </Button>
+
                     {commande.statut === 'EN_ATTENTE' && (
                       <Button size="sm" asChild className="flex-1 bg-purple-600 hover:bg-purple-700">
                         <Link href={'/commandes/' + commande.id + '/preparation'}>
                           <Package className="h-4 w-4 mr-1" /> Preparer
+                        </Link>
+                      </Button>
+                    )}
+
+                    {commande.statut === 'PRETE' && (
+                      <Button size="sm" asChild className="flex-1 bg-green-600 hover:bg-green-700">
+                        <Link href={'/livraison/' + commande.id}>
+                          <Truck className="h-4 w-4 mr-1" /> Livrer
+                        </Link>
+                      </Button>
+                    )}
+
+                    {commande.statut === 'EN_LIVRAISON' && (
+                      <Button size="sm" asChild className="flex-1 bg-blue-600 hover:bg-blue-700">
+                        <Link href={'/livraison/' + commande.id}>
+                          <CreditCard className="h-4 w-4 mr-1" /> Encaisser
+                        </Link>
+                      </Button>
+                    )}
+
+                    {commande.statut === 'LIVRE_DETTE' && (
+                      <Button size="sm" asChild className="flex-1 bg-amber-600 hover:bg-amber-700">
+                        <Link href={'/recouvrement/' + commande.id}>
+                          <RefreshCcw className="h-4 w-4 mr-1" /> Recouvrer
                         </Link>
                       </Button>
                     )}
@@ -196,7 +235,7 @@ export function CommandesList() {
               <TableHead>Date Livr.</TableHead>
               <TableHead className="text-right">Demande (Y|J)</TableHead>
               <TableHead className="text-center">Statut</TableHead>
-              <TableHead className="w-[120px] text-right">Actions</TableHead>
+              <TableHead className="w-[160px] text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -249,9 +288,33 @@ export function CommandesList() {
                       </Button>
 
                       {commande.statut === 'EN_ATTENTE' && (
-                        <Button variant="ghost" size="icon" asChild title="Preparer" className="text-blue-600">
+                        <Button variant="ghost" size="icon" asChild title="Preparer" className="text-purple-600">
                           <Link href={'/commandes/' + commande.id + '/preparation'}>
                             <Package className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                      )}
+
+                      {commande.statut === 'PRETE' && (
+                        <Button variant="ghost" size="icon" asChild title="Livrer" className="text-green-600">
+                          <Link href={'/livraison/' + commande.id}>
+                            <Truck className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                      )}
+
+                      {commande.statut === 'EN_LIVRAISON' && (
+                        <Button variant="ghost" size="icon" asChild title="Encaisser" className="text-blue-600">
+                          <Link href={'/livraison/' + commande.id}>
+                            <CreditCard className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                      )}
+
+                      {commande.statut === 'LIVRE_DETTE' && (
+                        <Button variant="ghost" size="icon" asChild title="Recouvrer" className="text-amber-600">
+                          <Link href={'/recouvrement/' + commande.id}>
+                            <RefreshCcw className="h-4 w-4" />
                           </Link>
                         </Button>
                       )}
@@ -265,4 +328,4 @@ export function CommandesList() {
       </div>
     </div>
   );
-      }
+}
