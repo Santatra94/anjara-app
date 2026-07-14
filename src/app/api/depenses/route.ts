@@ -1,29 +1,36 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
-import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+import { NextResponse } from 'next/server'
 
-export async function GET(request: NextRequest) {
+export async function GET(request: Request) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const supabase = createClient()
     const { searchParams } = new URL(request.url)
 
     const categorie = searchParams.get('categorie')
     const dateDebut = searchParams.get('date_debut')
     const dateFin = searchParams.get('date_fin')
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
       return NextResponse.json({ error: 'Non autorise' }, { status: 401 })
     }
 
-    const { data: utilisateur } = await supabase
+    const { data: utilisateur, error: utilisateurError } = await supabase
       .from('utilisateurs')
       .select('societe_id, role')
       .eq('id', user.id)
       .single()
 
-    if (!utilisateur || !['ADMIN', 'GERANT'].includes(utilisateur.role)) {
-      return NextResponse.json({ error: 'Acces interdit' }, { status: 403 })
+    if (utilisateurError || !utilisateur) {
+      return NextResponse.json({ error: 'Profil introuvable' }, { status: 403 })
+    }
+
+    if (utilisateur.role === 'LIVREUR') {
+      return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
     }
 
     let query = supabase
@@ -32,13 +39,16 @@ export async function GET(request: NextRequest) {
       .eq('societe_id', utilisateur.societe_id)
       .eq('is_archived', false)
       .order('date_depense', { ascending: false })
+      .order('created_at', { ascending: false })
 
     if (categorie && categorie !== 'TOUTES') {
       query = query.eq('categorie', categorie)
     }
+
     if (dateDebut) {
       query = query.gte('date_depense', dateDebut)
     }
+
     if (dateFin) {
       query = query.lte('date_depense', dateFin)
     }
@@ -49,30 +59,38 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ data })
+    return NextResponse.json({ data: data || [] })
   } catch {
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const supabase = createClient()
     const body = await request.json()
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
       return NextResponse.json({ error: 'Non autorise' }, { status: 401 })
     }
 
-    const { data: utilisateur } = await supabase
+    const { data: utilisateur, error: utilisateurError } = await supabase
       .from('utilisateurs')
       .select('societe_id, role')
       .eq('id', user.id)
       .single()
 
-    if (!utilisateur || !['ADMIN', 'GERANT'].includes(utilisateur.role)) {
-      return NextResponse.json({ error: 'Acces interdit' }, { status: 403 })
+    if (utilisateurError || !utilisateur) {
+      return NextResponse.json({ error: 'Profil introuvable' }, { status: 403 })
+    }
+
+    if (utilisateur.role === 'LIVREUR') {
+      return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
     }
 
     const { categorie, libelle, montant, date_depense, notes } = body
@@ -104,24 +122,32 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function PUT(request: NextRequest) {
+export async function PUT(request: Request) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const supabase = createClient()
     const body = await request.json()
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
       return NextResponse.json({ error: 'Non autorise' }, { status: 401 })
     }
 
-    const { data: utilisateur } = await supabase
+    const { data: utilisateur, error: utilisateurError } = await supabase
       .from('utilisateurs')
       .select('societe_id, role')
       .eq('id', user.id)
       .single()
 
-    if (!utilisateur || !['ADMIN', 'GERANT'].includes(utilisateur.role)) {
-      return NextResponse.json({ error: 'Acces interdit' }, { status: 403 })
+    if (utilisateurError || !utilisateur) {
+      return NextResponse.json({ error: 'Profil introuvable' }, { status: 403 })
+    }
+
+    if (utilisateur.role === 'LIVREUR') {
+      return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
     }
 
     const { id, categorie, libelle, montant, date_depense, notes } = body
@@ -141,6 +167,7 @@ export async function PUT(request: NextRequest) {
       })
       .eq('id', id)
       .eq('societe_id', utilisateur.societe_id)
+      .eq('is_archived', false)
       .select()
       .single()
 
@@ -154,25 +181,33 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-export async function DELETE(request: NextRequest) {
+export async function DELETE(request: Request) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const supabase = createClient()
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
       return NextResponse.json({ error: 'Non autorise' }, { status: 401 })
     }
 
-    const { data: utilisateur } = await supabase
+    const { data: utilisateur, error: utilisateurError } = await supabase
       .from('utilisateurs')
       .select('societe_id, role')
       .eq('id', user.id)
       .single()
 
-    if (!utilisateur || !['ADMIN', 'GERANT'].includes(utilisateur.role)) {
-      return NextResponse.json({ error: 'Acces interdit' }, { status: 403 })
+    if (utilisateurError || !utilisateur) {
+      return NextResponse.json({ error: 'Profil introuvable' }, { status: 403 })
+    }
+
+    if (utilisateur.role === 'LIVREUR') {
+      return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
     }
 
     if (!id) {
@@ -184,6 +219,7 @@ export async function DELETE(request: NextRequest) {
       .update({ is_archived: true })
       .eq('id', id)
       .eq('societe_id', utilisateur.societe_id)
+      .eq('is_archived', false)
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
@@ -193,4 +229,4 @@ export async function DELETE(request: NextRequest) {
   } catch {
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
-  }
+}
