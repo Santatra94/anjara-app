@@ -92,7 +92,6 @@ export function CommandesList() {
             <SelectItem value="EN_ATTENTE">En attente</SelectItem>
             <SelectItem value="PREPARATION">Preparation</SelectItem>
             <SelectItem value="EN_LIVRAISON">En livraison</SelectItem>
-            <SelectItem value="PRETE">Prete</SelectItem>
             <SelectItem value="LIVRE_PAYE">Livre (Paye)</SelectItem>
             <SelectItem value="LIVRE_DETTE">Livre (Dette)</SelectItem>
             <SelectItem value="ANNULE">Annule</SelectItem>
@@ -193,18 +192,10 @@ export function CommandesList() {
                       </Button>
                     )}
 
-                    {commande.statut === 'PRETE' && (
+                    {commande.statut === 'EN_LIVRAISON' && (
                       <Button size="sm" asChild className="flex-1 bg-green-600 hover:bg-green-700">
                         <Link href={'/livraison/' + commande.id}>
                           <Truck className="h-4 w-4 mr-1" /> Livrer
-                        </Link>
-                      </Button>
-                    )}
-
-                    {commande.statut === 'EN_LIVRAISON' && (
-                      <Button size="sm" asChild className="flex-1 bg-blue-600 hover:bg-blue-700">
-                        <Link href={'/livraison/' + commande.id}>
-                          <CreditCard className="h-4 w-4 mr-1" /> Encaisser
                         </Link>
                       </Button>
                     )}
@@ -295,18 +286,10 @@ export function CommandesList() {
                         </Button>
                       )}
 
-                      {commande.statut === 'PRETE' && (
+                      {commande.statut === 'EN_LIVRAISON' && (
                         <Button variant="ghost" size="icon" asChild title="Livrer" className="text-green-600">
                           <Link href={'/livraison/' + commande.id}>
                             <Truck className="h-4 w-4" />
-                          </Link>
-                        </Button>
-                      )}
-
-                      {commande.statut === 'EN_LIVRAISON' && (
-                        <Button variant="ghost" size="icon" asChild title="Encaisser" className="text-blue-600">
-                          <Link href={'/livraison/' + commande.id}>
-                            <CreditCard className="h-4 w-4" />
                           </Link>
                         </Button>
                       )}
