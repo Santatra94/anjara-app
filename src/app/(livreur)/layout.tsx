@@ -20,7 +20,8 @@ export default async function LivreurGroupLayout({
     .eq('id', user.id)
     .single();
 
-  if (profil?.role !== 'LIVREUR') {
+  const rolesAutorises = ['LIVREUR', 'ADMIN', 'GERANT'];
+  if (!profil || !rolesAutorises.includes(profil.role)) {
     redirect('/');
   }
 
