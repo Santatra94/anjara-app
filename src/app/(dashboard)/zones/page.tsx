@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useZones } from '@/hooks/useZones';
 import { Button } from '@/components/ui/button';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, MapPin } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -51,10 +51,10 @@ export default function ZonesPage() {
     try {
       if (editingZone) {
         await updateZone(editingZone.id, values);
-        toast.success("Zone mise à jour");
+        toast.success("Zone mise a jour");
       } else {
         await addZone(values);
-        toast.success("Zone ajoutée");
+        toast.success("Zone ajoutee");
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Une erreur est survenue";
@@ -66,7 +66,7 @@ export default function ZonesPage() {
     if (!deletingZone) return;
     try {
       await archiveZone(deletingZone.id);
-      toast.success("Zone archivée");
+      toast.success("Zone archivee");
       setDeletingZone(null);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Une erreur est survenue";
@@ -77,17 +77,55 @@ export default function ZonesPage() {
   return (
     <ProtectedRoute allowedRoles={['ADMIN', 'GERANT']}>
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Zones géographiques</h1>
-            <p className="text-muted-foreground">Gérez les secteurs de livraison.</p>
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight">Zones geographiques</h1>
+            <p className="text-muted-foreground text-xs md:text-sm">Secteurs de livraison.</p>
           </div>
-          <Button onClick={handleAdd}>
+          <Button onClick={handleAdd} className="w-full md:w-auto">
             <Plus className="mr-2 h-4 w-4" /> Ajouter une zone
           </Button>
         </div>
 
-        <div className="rounded-md border bg-white">
+        {/* VUE MOBILE - Cards */}
+        <div className="md:hidden space-y-3">
+          {loading ? (
+            Array.from({ length: 3 }).map(function (_, i) {
+              return <div key={i} className="h-20 animate-pulse bg-white rounded-xl border" />;
+            })
+          ) : zones.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground italic bg-white rounded-xl border">
+              Aucune zone trouvee.
+            </div>
+          ) : (
+            zones.map(function (zone) {
+              return (
+                <div key={zone.id} className="bg-white rounded-xl border shadow-sm p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                      <MapPin className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-gray-900 truncate">{zone.nom}</h3>
+                      <p className="text-xs text-gray-500">{zone.ville || "—"}</p>
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      <Button variant="ghost" size="icon" onClick={function () { handleEdit(zone); }}>
+                        <Pencil className="h-4 w-4 text-gray-500" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={function () { setDeletingZone(zone); }}>
+                        <Trash2 className="h-4 w-4 text-red-500" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* VUE DESKTOP - Tableau */}
+        <div className="hidden md:block rounded-md border bg-white">
           <Table>
             <TableHeader>
               <TableRow>
@@ -103,7 +141,7 @@ export default function ZonesPage() {
                 </TableRow>
               ) : zones.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center py-8">Aucune zone trouvée.</TableCell>
+                  <TableCell colSpan={3} className="text-center py-8">Aucune zone trouvee.</TableCell>
                 </TableRow>
               ) : (
                 zones.map((zone) => (
@@ -137,9 +175,9 @@ export default function ZonesPage() {
         <AlertDialog open={!!deletingZone} onOpenChange={() => setDeletingZone(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Êtes-vous sûr ?</AlertDialogTitle>
+              <AlertDialogTitle>Etes-vous sur ?</AlertDialogTitle>
               <AlertDialogDescription>
-                Cette action va archiver la zone &quot;{deletingZone?.nom}&quot;. Elle ne sera plus disponible pour les nouveaux clients ou livreurs.
+                Cette action va archiver la zone &quot;{deletingZone?.nom}&quot;.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -153,4 +191,4 @@ export default function ZonesPage() {
       </div>
     </ProtectedRoute>
   );
-}
+                  }
