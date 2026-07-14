@@ -49,6 +49,15 @@ const getDateRange = (
   }
 }
 
+function extractProduit(raw: unknown): ProduitJoin | null {
+  if (!raw) return null
+  if (Array.isArray(raw)) {
+    if (raw.length === 0) return null
+    return raw[0] as ProduitJoin
+  }
+  return raw as ProduitJoin
+}
+
 export async function GET(request: Request) {
   try {
     const supabase = createClient()
@@ -161,9 +170,7 @@ export async function GET(request: Request) {
       .from('lignes_commande')
       .select(`
         quantite,
-        prix_unitaire,
         total_ligne,
-        produit_id,
         produits (
           nom_produit,
           categorie,
@@ -185,13 +192,14 @@ export async function GET(request: Request) {
 
     if (lignes) {
       for (const ligne of lignes) {
-        const produit = ligne.produits as ProduitJoin | null
+        const produit = extractProduit(ligne.produits)
         if (!produit) continue
 
         const nom = produit.nom_produit
         const ca_ligne = Number(ligne.total_ligne || 0)
         const prix_achat = Number(produit.prix_achat || 0)
-        const cout_ligne = prix_achat * Number(ligne.quantite || 0)
+        const quantite = Number(ligne.quantite || 0)
+        const cout_ligne = prix_achat * quantite
 
         if (!benefice_par_produit[nom]) {
           benefice_par_produit[nom] = {
@@ -207,7 +215,7 @@ export async function GET(request: Request) {
         benefice_par_produit[nom].ca += ca_ligne
         benefice_par_produit[nom].cout += cout_ligne
         benefice_par_produit[nom].benefice += ca_ligne - cout_ligne
-        benefice_par_produit[nom].quantite += Number(ligne.quantite || 0)
+        benefice_par_produit[nom].quantite += quantite
       }
     }
 
