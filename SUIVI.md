@@ -63,6 +63,67 @@
 
 ## 📅 Journal de travail
 
+### 15/07/2026 — TODO C + TODO D (Bottom sheets + Mode livreur ADMIN/GERANT)
+
+**TODO C — Améliorations mobile**
+- ✅ **MobileSheet wrapper** créé (`src/components/ui/mobile-sheet.tsx`)
+  - Mobile (<md) : glisse depuis le bas, handle gris, rounded-top
+  - Desktop : Dialog classique centré
+  - Basé sur Radix Dialog primitives
+- ✅ **5 modales converties** en bottom sheets sur mobile :
+  - ClientFormModal
+  - LivreurFormModal
+  - ProduitFormModal
+  - ZoneFormModal
+  - TypePdvFormModal
+- ✅ **Header mobile compact** (h-12 md:h-16, padding réduit, logo/texte plus petits)
+
+**TODO D — ADMIN/GERANT peut effectuer des livraisons**
+- ✅ **Layout (livreur)** accepte ADMIN + GERANT (plus juste LIVREUR)
+- ✅ **LivreurShell adapté** pour ADMIN/GERANT :
+  - Badge "Mode livreur" bleu
+  - Bouton "Retour" vers Dashboard (au lieu de logo ANJARA)
+  - Pas de BottomNav livreur ni de FAB (pour ne pas polluer l'UX admin)
+- ✅ **Hook `useTourneeAdmin`** créé (accepte un `livreurId` en paramètre)
+  - Fetch la liste des utilisateurs (LIVREUR + ADMIN + GERANT)
+  - Fetch la tournée du livreur sélectionné
+- ✅ **Page `/tournee-admin`** créée (dashboard)
+  - Dropdown "Choisir un livreur" (inclut ADMIN + GERANT)
+  - Affichage tournée du livreur choisi (Préparations/Livraisons/Recouvrements)
+  - Réutilise les composants CartePreparation, CarteLivraison, CarteRecouvrement
+- ✅ **Bouton "Tournée du jour"** ajouté dans menu Plus du BottomNavAdmin
+- ✅ **Boutons Livrer/Recouvrer** dans CommandesList (mobile + desktop)
+  - EN_LIVRAISON → bouton "Livrer" (vert) → /livraison/[id]
+  - LIVRE_DETTE → bouton "Recouvrer" (ambre) → /recouvrement/[id]
+- ✅ **`useLivreurs` étendu** pour inclure ADMIN + GERANT (au lieu de juste LIVREUR)
+
+**Fichiers créés**
+- `src/components/ui/mobile-sheet.tsx`
+- `src/hooks/useTourneeAdmin.ts`
+- `src/app/(dashboard)/tournee-admin/page.tsx`
+
+**Fichiers modifiés**
+- `src/components/modules/ClientFormModal.tsx`
+- `src/components/modules/LivreurFormModal.tsx`
+- `src/components/modules/ProduitFormModal.tsx`
+- `src/components/modules/ZoneFormModal.tsx`
+- `src/components/modules/TypePdvFormModal.tsx`
+- `src/components/layout/Header.tsx` (compact mobile)
+- `src/components/layout/BottomNavAdmin.tsx` (+ Tournée du jour)
+- `src/components/livreur/LivreurShell.tsx` (badge Mode livreur)
+- `src/app/(livreur)/layout.tsx` (accepte 3 rôles)
+- `src/components/commandes/CommandesList.tsx` (boutons actions)
+- `src/hooks/useLivreurs.ts` (3 rôles)
+
+**Bugs découverts / à corriger**
+- ⚠️ **Modal "Réassigner le livreur"** dans CommandeDetailView ne montre PAS
+  encore ADMIN/GERANT — il utilise probablement une autre requête directe
+  ou un autre hook que `useLivreurs`. À investiguer prochaine session.
+- ⚠️ SWC : erreur type sur statut 'PRETE' (n'existe pas dans l'enum SQL)
+  → correction : utiliser 'EN_LIVRAISON' à la place
+
+**Durée** : ~2h30
+
 ### 14/07/2026 — Interface mobile ADMIN/GERANT
 
 **Réalisations**
