@@ -5,12 +5,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { typePdvSchema } from "@/lib/schemas";
 import * as z from "zod";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   Form,
   FormControl,
   FormField,
@@ -22,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { TypePdv } from "@/types";
 import { useEffect } from "react";
+import { MobileSheet } from "@/components/ui/mobile-sheet";
 
 interface TypePdvFormModalProps {
   open: boolean;
@@ -55,43 +50,40 @@ export function TypePdvFormModal({ open, onOpenChange, onSubmit, initialData }: 
       await onSubmit(values);
       onOpenChange(false);
       form.reset();
-    } catch (error) {
-      console.error(error);
+    } catch {
+      // erreur geree par le parent
     }
   };
 
+  const title = initialData ? "Modifier le type" : "Ajouter un type de PDV";
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{initialData ? "Modifier le type" : "Ajouter un type de PDV"}</DialogTitle>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="nom_type"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nom du type</FormLabel>
-                  <FormControl>
-                    <Input placeholder="ex: Kiosque, Épicerie..." {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="flex justify-end gap-3 pt-4">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Annuler
-              </Button>
-              <Button type="submit" disabled={form.formState.isSubmitting}>
-                {initialData ? "Mettre à jour" : "Créer"}
-              </Button>
-            </div>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+    <MobileSheet open={open} onOpenChange={onOpenChange} title={title}>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+          <FormField
+            control={form.control}
+            name="nom_type"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Nom du type</FormLabel>
+                <FormControl>
+                  <Input placeholder="ex: Kiosque, Epicerie..." {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <div className="flex justify-end gap-3 pt-4">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Annuler
+            </Button>
+            <Button type="submit" disabled={form.formState.isSubmitting}>
+              {initialData ? "Mettre a jour" : "Creer"}
+            </Button>
+          </div>
+        </form>
+      </Form>
+    </MobileSheet>
   );
 }
