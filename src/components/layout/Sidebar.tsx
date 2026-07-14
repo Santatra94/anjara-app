@@ -10,7 +10,8 @@ import {
   Package,
   Users,
   Truck,
-  ShoppingCart
+  ShoppingCart,
+  TrendingDown,
 } from 'lucide-react';
 
 const navigation = [
@@ -21,6 +22,7 @@ const navigation = [
   { name: 'Produits', href: '/produits', icon: Package },
   { name: 'Clients', href: '/clients', icon: Users },
   { name: 'Livreurs', href: '/livreurs', icon: Truck },
+  { name: 'Depenses', href: '/depenses', icon: TrendingDown },
 ];
 
 export function Sidebar() {
@@ -31,7 +33,9 @@ export function Sidebar() {
       <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
         <nav className="mt-5 flex-1 px-2 space-y-1">
           {navigation.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+            const isActive =
+              pathname === item.href ||
+              (item.href !== '/' && pathname.startsWith(item.href + '/'));
             return (
               <Link
                 key={item.name}
@@ -58,4 +62,4 @@ export function Sidebar() {
       </div>
     </div>
   );
-                  }
+}
