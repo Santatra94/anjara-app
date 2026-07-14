@@ -5,41 +5,63 @@ import { BottomNav } from './BottomNav';
 import { IndicateurReseau } from './IndicateurReseau';
 import { FabNouvelleCommande } from './FabNouvelleCommande';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { LogOut } from 'lucide-react';
+import { LogOut, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 
 export function LivreurShell({ children }: { children: React.ReactNode }) {
   const { user, signOut } = useAuth();
 
+  const isAdmin = user?.utilisateur.role === 'ADMIN' || user?.utilisateur.role === 'GERANT';
+
   return (
-    <ProtectedRoute allowedRoles={['LIVREUR']}>
+    <ProtectedRoute allowedRoles={['LIVREUR', 'ADMIN', 'GERANT']}>
       <div className="min-h-screen bg-gray-50 flex flex-col pb-16">
-        {/* Header mobile optimisé */}
+        {/* Header mobile optimise */}
         <header className="bg-white border-b border-gray-200 h-14 flex items-center justify-between px-4 sticky top-0 z-40 shadow-sm">
           <div className="flex items-center gap-3">
-             <span className="text-xl">🥛</span>
-             <span className="font-extrabold text-lg tracking-tight">ANJARA</span>
-             <IndicateurReseau />
+            {isAdmin ? (
+              <Link
+                href="/"
+                className="flex items-center gap-2 text-blue-600"
+              >
+                <ArrowLeft className="h-5 w-5" />
+                <span className="text-sm font-bold">Retour</span>
+              </Link>
+            ) : (
+              <>
+                <span className="text-xl">🥛</span>
+                <span className="font-extrabold text-lg tracking-tight">ANJARA</span>
+                <IndicateurReseau />
+              </>
+            )}
           </div>
 
           <div className="flex items-center gap-3">
+            {isAdmin && (
+              <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
+                Mode livreur
+              </span>
+            )}
             <span className="text-xs font-bold text-gray-500 max-w-[100px] truncate">
               {user?.utilisateur.nom.split(' ')[0]}
             </span>
-            <button
-              onClick={signOut}
-              className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
-            >
-              <LogOut className="h-5 w-5" />
-            </button>
+            {!isAdmin && (
+              <button
+                onClick={signOut}
+                className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
+              >
+                <LogOut className="h-5 w-5" />
+              </button>
+            )}
           </div>
         </header>
 
         <main className="flex-1 overflow-x-hidden">
-           {children}
+          {children}
         </main>
 
-        <FabNouvelleCommande />
-        <BottomNav />
+        {!isAdmin && <FabNouvelleCommande />}
+        {!isAdmin && <BottomNav />}
       </div>
     </ProtectedRoute>
   );
