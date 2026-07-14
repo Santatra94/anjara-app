@@ -24,6 +24,7 @@ import { Truck } from 'lucide-react';
 interface Livreur {
   id: string;
   nom: string;
+  role: string;
   zone: { nom: string } | null;
 }
 
@@ -58,9 +59,9 @@ export function ReassignerLivreurModal({
       setLoading(true);
       const { data, error } = await supabase
         .from('utilisateurs')
-        .select('id, nom, zone:zones(nom)')
+        .select('id, nom, role, zone:zones(nom)')
         .eq('societe_id', user.societe.id)
-        .eq('role', 'LIVREUR')
+        .in('role', ['LIVREUR', 'ADMIN', 'GERANT'])
         .eq('actif', true)
         .eq('is_archived', false)
         .order('nom');
@@ -79,7 +80,7 @@ export function ReassignerLivreurModal({
 
   const handleSave = async () => {
     if (!selectedLivreurId) {
-      toast.error('Veuillez sélectionner un livreur');
+      toast.error('Veuillez selectionner un livreur');
       return;
     }
 
@@ -98,7 +99,7 @@ export function ReassignerLivreurModal({
     if (error) {
       toast.error('Erreur', { description: error.message });
     } else {
-      toast.success('Livreur réassigné avec succès');
+      toast.success('Livreur reassigne avec succes');
       onSuccess();
       onOpenChange(false);
     }
@@ -111,7 +112,7 @@ export function ReassignerLivreurModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Truck className="h-5 w-5 text-blue-500" />
-            Réassigner le livreur
+            Reassigner le livreur
           </DialogTitle>
         </DialogHeader>
 
@@ -126,12 +127,17 @@ export function ReassignerLivreurModal({
               disabled={loading}
             >
               <SelectTrigger>
-                <SelectValue placeholder={loading ? 'Chargement...' : 'Sélectionner un livreur'} />
+                <SelectValue placeholder={loading ? 'Chargement...' : 'Selectionner un livreur'} />
               </SelectTrigger>
               <SelectContent>
                 {livreurs.map((l) => (
                   <SelectItem key={l.id} value={l.id}>
-                    {l.nom} {l.zone?.nom && `(${l.zone.nom})`}
+                    <div className="flex items-center gap-2">
+                      <span>{l.nom}</span>
+                      <span className="text-xs text-gray-400 uppercase">
+                        ({l.role}){l.zone?.nom ? ' - ' + l.zone.nom : ''}
+                      </span>
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -139,7 +145,7 @@ export function ReassignerLivreurModal({
           </div>
 
           <p className="text-xs text-muted-foreground italic">
-            Seuls les livreurs actifs de votre société sont affichés.
+            Les livreurs, admins et gerants actifs de votre societe sont affiches.
           </p>
         </div>
 
