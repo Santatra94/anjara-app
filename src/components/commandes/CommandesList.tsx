@@ -29,7 +29,6 @@ import {
   Filter,
   MapPin,
   Calendar,
-  CreditCard,
   RefreshCcw,
 } from "lucide-react";
 import Link from "next/link";
