@@ -58,7 +58,6 @@ export async function GET(request: Request) {
     const debutIso = debut + 'T00:00:00'
     const finIso = fin + 'T23:59:59'
 
-    // -- CA periode (encaissements)
     const { data: encaissements } = await supabase
       .from('encaissements')
       .select('montant_encaisse, date_encaissement')
@@ -73,10 +72,9 @@ export async function GET(request: Request) {
       }
     }
 
-    // -- Depenses periode
     const { data: depenses } = await supabase
       .from('depenses')
-      .select('montant, categorie, date_depense, libelle')
+      .select('montant, categorie')
       .eq('societe_id', societe_id)
       .eq('is_archived', false)
       .gte('date_depense', debut)
@@ -96,7 +94,6 @@ export async function GET(request: Request) {
 
     const benefice = ca_periode - total_depenses
 
-    // -- Graphique 6 derniers mois (CA vs Depenses)
     const graphique_mois = []
     for (let i = 5; i >= 0; i--) {
       const mois = subMonths(aujourd_hui, i)
@@ -137,7 +134,6 @@ export async function GET(request: Request) {
       })
     }
 
-    // -- Benefice par produit
     const { data: lignes } = await supabase
       .from('lignes_commande')
       .select(`
@@ -162,23 +158,26 @@ export async function GET(request: Request) {
       .lte('commandes.date_livraison', fin)
       .eq('is_archived', false)
 
-    const benefice_par_produit: Record<string, {
+    type BeneficeProduit = {
       nom: string
       categorie: string
       ca: number
       cout: number
       benefice: number
       quantite: number
-    }> = {}
+    }
+
+    type ProduitJoin = {
+      nom_produit: string
+      categorie: string
+      prix_achat: number | null
+    }
+
+    const benefice_par_produit: Record<string, BeneficeProduit> = {}
 
     if (lignes) {
       for (const ligne of lignes) {
-        const produit = ligne.produits as {
-          nom_produit: string
-          categorie: string
-          prix_achat: number | null
-        } | null
-
+        const produit = ligne.produits as ProduitJoin | null
         if (!produit) continue
 
         const nom = produit.nom_produit
@@ -194,4 +193,30 @@ export async function GET(request: Request) {
             cout: 0,
             benefice: 0,
             quantite: 0,
-          
+          }
+        }
+
+        benefice_par_produit[nom].ca += ca_ligne
+        benefice_par_produit[nom].cout += cout_ligne
+        benefice_par_produit[nom].benefice += ca_ligne - cout_ligne
+        benefice_par_produit[nom].quantite += Number(ligne.quantite || 0)
+      }
+    }
+
+    const benefice_produits = Object.values(benefice_par_produit).sort(
+      (a, b) => b.benefice - a.benefice
+    )
+
+    return NextResponse.json({
+      ca_periode,
+      total_depenses,
+      benefice,
+      depenses_par_categorie,
+      graphique_mois,
+      benefice_produits,
+      periode: { debut, fin, type },
+    })
+  } catch {
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+  }
+}
