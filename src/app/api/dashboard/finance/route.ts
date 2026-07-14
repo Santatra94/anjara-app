@@ -2,6 +2,53 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns'
 
+type BeneficeProduit = {
+  nom: string
+  categorie: string
+  ca: number
+  cout: number
+  benefice: number
+  quantite: number
+}
+
+type ProduitJoin = {
+  nom_produit: string
+  categorie: string
+  prix_achat: number | null
+}
+
+const getDateRange = (
+  t: string,
+  aujourd_hui: Date,
+  searchParams: URLSearchParams
+) => {
+  if (t === 'aujourd_hui') {
+    const d = format(aujourd_hui, 'yyyy-MM-dd')
+    return { debut: d, fin: d }
+  }
+  if (t === 'mois_precedent') {
+    const mp = subMonths(aujourd_hui, 1)
+    return {
+      debut: format(startOfMonth(mp), 'yyyy-MM-dd'),
+      fin: format(endOfMonth(mp), 'yyyy-MM-dd'),
+    }
+  }
+  if (t === 'personnalise') {
+    return {
+      debut:
+        searchParams.get('debut') ||
+        format(startOfMonth(aujourd_hui), 'yyyy-MM-dd'),
+      fin:
+        searchParams.get('fin') ||
+        format(aujourd_hui, 'yyyy-MM-dd'),
+    }
+  }
+  return {
+    debut: format(startOfMonth(aujourd_hui), 'yyyy-MM-dd'),
+    fin: format(endOfMonth(aujourd_hui), 'yyyy-MM-dd'),
+  }
+}
+
 export async function GET(request: Request) {
   try {
     const supabase = createClient()
@@ -30,31 +77,7 @@ export async function GET(request: Request) {
     const type = searchParams.get('type') || 'ce_mois'
     const aujourd_hui = new Date()
 
-    function getDateRange(t: string) {
-      if (t === 'aujourd_hui') {
-        const d = format(aujourd_hui, 'yyyy-MM-dd')
-        return { debut: d, fin: d }
-      }
-      if (t === 'mois_precedent') {
-        const mp = subMonths(aujourd_hui, 1)
-        return {
-          debut: format(startOfMonth(mp), 'yyyy-MM-dd'),
-          fin: format(endOfMonth(mp), 'yyyy-MM-dd'),
-        }
-      }
-      if (t === 'personnalise') {
-        return {
-          debut: searchParams.get('debut') || format(startOfMonth(aujourd_hui), 'yyyy-MM-dd'),
-          fin: searchParams.get('fin') || format(aujourd_hui, 'yyyy-MM-dd'),
-        }
-      }
-      return {
-        debut: format(startOfMonth(aujourd_hui), 'yyyy-MM-dd'),
-        fin: format(endOfMonth(aujourd_hui), 'yyyy-MM-dd'),
-      }
-    }
-
-    const { debut, fin } = getDateRange(type)
+    const { debut, fin } = getDateRange(type, aujourd_hui, searchParams)
     const debutIso = debut + 'T00:00:00'
     const finIso = fin + 'T23:59:59'
 
@@ -157,21 +180,6 @@ export async function GET(request: Request) {
       .gte('commandes.date_livraison', debut)
       .lte('commandes.date_livraison', fin)
       .eq('is_archived', false)
-
-    type BeneficeProduit = {
-      nom: string
-      categorie: string
-      ca: number
-      cout: number
-      benefice: number
-      quantite: number
-    }
-
-    type ProduitJoin = {
-      nom_produit: string
-      categorie: string
-      prix_achat: number | null
-    }
 
     const benefice_par_produit: Record<string, BeneficeProduit> = {}
 
