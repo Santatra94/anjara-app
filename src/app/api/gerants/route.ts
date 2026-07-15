@@ -34,7 +34,9 @@ export async function GET() {
       return NextResponse.json({ error: 'Reserve ADMIN' }, { status: 403 })
     }
 
-    const { data, error } = await supabase
+    // Utiliser admin client pour bypass RLS (ADMIN doit voir tous les GERANTS)
+    const admin = getAdminClient()
+    const { data, error } = await admin
       .from('utilisateurs')
       .select('id, nom, email, telephone, actif, created_at, societe_id, societes(nom)')
       .eq('role', 'GERANT')
@@ -77,7 +79,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Champs manquants (nom societe, nom gerant, email)' }, { status: 400 })
     }
 
-    const { data: existing } = await supabase
+    const admin = getAdminClient()
+
+    // Utiliser admin pour verifier email (bypass RLS)
+    const { data: existing } = await admin
       .from('utilisateurs')
       .select('id')
       .eq('email', email)
@@ -87,7 +92,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Cet email existe deja' }, { status: 400 })
     }
 
-    const admin = getAdminClient()
     const { data: invitation, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
       redirectTo: redirectDefinirMdp,
     })
@@ -214,15 +218,31 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'ID manquant' }, { status: 400 })
     }
 
-    const { error } = await supabase
+    const admin = getAdminClient()
+
+    // Recuperer le user pour le supprimer aussi de Auth
+    const { data: gerant } = await admin
+      .from('utilisateurs')
+      .select('id, role')
+      .eq('id', id)
+      .single()
+
+    if (!gerant || gerant.role !== 'GERANT') {
+      return NextResponse.json({ error: 'Gerant introuvable' }, { status: 404 })
+    }
+
+    // Soft delete dans utilisateurs
+    const { error } = await admin
       .from('utilisateurs')
       .update({ is_archived: true, actif: false })
       .eq('id', id)
-      .eq('role', 'GERANT')
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
+
+    // Supprimer aussi de Supabase Auth (pour pouvoir reutiliser l'email)
+    await admin.auth.admin.deleteUser(id)
 
     return NextResponse.json({ success: true })
   } catch {
