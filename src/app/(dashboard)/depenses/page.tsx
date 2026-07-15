@@ -229,7 +229,8 @@ export default function DepensesPage() {
     }
   }
 
-  const matiereSelectionnee = matieres.find((m) => m.id === form.matiere_id)  return (
+  const matiereSelectionnee = matieres.find((m) => m.id === form.matiere_id)
+  return (
     <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
