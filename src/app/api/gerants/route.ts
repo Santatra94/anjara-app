@@ -4,6 +4,8 @@ import { NextResponse } from 'next/server'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://anjara-app.vercel.app'
+const redirectDefinirMdp = appUrl + '/definir-mot-de-passe'
 
 function getAdminClient() {
   return createAdminClient(supabaseUrl, serviceRoleKey, {
@@ -86,7 +88,9 @@ export async function POST(request: Request) {
     }
 
     const admin = getAdminClient()
-    const { data: invitation, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email)
+    const { data: invitation, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, {
+      redirectTo: redirectDefinirMdp,
+    })
 
     if (inviteError || !invitation.user) {
       return NextResponse.json({ error: 'Erreur invitation : ' + (inviteError?.message || 'inconnu') }, { status: 500 })
@@ -168,7 +172,7 @@ export async function PATCH(request: Request) {
     }
 
     const { error: resetError } = await admin.auth.resetPasswordForEmail(gerant.email, {
-      redirectTo: process.env.NEXT_PUBLIC_APP_URL || 'https://anjara-app.vercel.app'
+      redirectTo: redirectDefinirMdp,
     })
 
     if (resetError) {
