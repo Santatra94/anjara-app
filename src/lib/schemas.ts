@@ -31,9 +31,8 @@ export const clientSchema = z.object({
 
 export const livreurSchema = z.object({
   nom: z.string().min(2, "Le nom est requis"),
-  email: z.string().email("Email invalide").optional().nullable().or(z.literal('')),
+  email: z.string().email("Email valide obligatoire"),
   telephone: z.string().optional().nullable(),
-  password: z.string().min(6, "Le mot de passe doit faire au moins 6 caractères").optional(),
   zone_id: z.string().uuid("La zone est requise").optional().nullable(),
   actif: z.boolean(),
 });
