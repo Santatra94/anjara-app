@@ -22,11 +22,27 @@ export default function DefinirMotDePassePage() {
 
   useEffect(() => {
     async function checkSession() {
+      // Attendre un peu que Supabase traite le fragment URL (#access_token=...)
+      await new Promise((resolve) => setTimeout(resolve, 500))
+
+      // Ecouter les changements d'auth
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_IN' || event === 'PASSWORD_RECOVERY' || event === 'INITIAL_SESSION') {
+          setSessionOk(!!session)
+        }
+      })
+
+      // Verifier la session actuelle
       const { data: { session } } = await supabase.auth.getSession()
       setSessionOk(!!session)
+
+      return () => subscription.unsubscribe()
     }
     checkSession()
-  }, [supabase])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -49,6 +65,7 @@ export default function DefinirMotDePassePage() {
       toast.success('Mot de passe defini avec succes')
       setTimeout(() => {
         router.push('/')
+        router.refresh()
       }, 2000)
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Erreur'
@@ -61,7 +78,7 @@ export default function DefinirMotDePassePage() {
   if (sessionOk === null) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-sm text-gray-500">Verification...</p>
+        <p className="text-sm text-gray-500">Verification du lien...</p>
       </div>
     )
   }
@@ -157,4 +174,4 @@ export default function DefinirMotDePassePage() {
       </div>
     </div>
   )
-        }
+}
