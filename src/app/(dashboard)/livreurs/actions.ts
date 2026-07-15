@@ -13,7 +13,7 @@ async function checkAdminAuth() {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
 
   if (authError || !user) {
-    throw new Error("Non authentifié");
+    throw new Error("Non authentifie");
   }
 
   const { data: profile, error: profileError } = await supabase
@@ -37,39 +37,54 @@ export async function createLivreurAction(values: LivreurValues, societeId: stri
   try {
     const callerProfile = await checkAdminAuth();
 
-    // Protection contre l'injection de societeId
     if (callerProfile.societe_id !== societeId) {
-       throw new Error("Incohérence de société");
+      throw new Error("Incoherence de societe");
     }
 
-    // 1. Créer l'utilisateur dans Supabase Auth via Admin API
-    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: values.email || `${values.nom.toLowerCase().replace(/\s/g, '.')}@anjara.mg`,
-      password: values.password || 'anjara123',
-      email_confirm: true,
-      user_metadata: { role: 'LIVREUR', societe_id: societeId }
-    });
+    if (!values.email) {
+      throw new Error("Email obligatoire pour envoyer l'invitation");
+    }
 
-    if (authError) throw authError;
+    // Verifier que l'email n'existe pas deja
+    const { data: existing } = await supabaseAdmin
+      .from('utilisateurs')
+      .select('id')
+      .eq('email', values.email)
+      .maybeSingle();
 
-    // 2. Créer l'entrée dans la table utilisateurs (profil)
+    if (existing) {
+      throw new Error("Cet email est deja utilise");
+    }
+
+    // 1. Inviter l'utilisateur via email (au lieu de creer directement)
+    const { data: invitation, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(values.email);
+
+    if (inviteError || !invitation.user) {
+      throw new Error("Erreur invitation : " + (inviteError?.message || "inconnu"));
+    }
+
+    // 2. Creer l'entree dans la table utilisateurs (profil)
     const { error: profileError } = await supabaseAdmin
       .from('utilisateurs')
       .insert([{
-        id: authUser.user.id,
+        id: invitation.user.id,
         societe_id: societeId,
         nom: values.nom,
-        email: values.email || null,
+        email: values.email,
         telephone: values.telephone || null,
         role: 'LIVREUR',
         zone_id: values.zone_id || null,
         actif: values.actif ?? true
       }]);
 
-    if (profileError) throw profileError;
+    if (profileError) {
+      // Rollback : supprimer le compte auth cree
+      await supabaseAdmin.auth.admin.deleteUser(invitation.user.id);
+      throw profileError;
+    }
 
     revalidatePath('/livreurs');
-    return { success: true };
+    return { success: true, message: "Invitation envoyee a " + values.email };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Une erreur est survenue";
     return { success: false, error: message };
@@ -80,22 +95,21 @@ export async function updateLivreurAction(id: string, values: LivreurValues) {
   try {
     const callerProfile = await checkAdminAuth();
 
-    // Vérifier que le livreur à modifier appartient à la même société
     const { data: targetProfile, error: targetError } = await supabaseAdmin
-        .from('utilisateurs')
-        .select('societe_id')
-        .eq('id', id)
-        .single();
+      .from('utilisateurs')
+      .select('societe_id')
+      .eq('id', id)
+      .single();
 
     if (targetError || !targetProfile || targetProfile.societe_id !== callerProfile.societe_id) {
-        throw new Error("Utilisateur introuvable ou accès refusé");
+      throw new Error("Utilisateur introuvable ou acces refuse");
     }
 
     const { error } = await supabaseAdmin
       .from('utilisateurs')
       .update({
         nom: values.nom,
-        email: values.email || null,
+        email: values.email,
         telephone: values.telephone || null,
         zone_id: values.zone_id || null,
         actif: values.actif
@@ -104,13 +118,46 @@ export async function updateLivreurAction(id: string, values: LivreurValues) {
 
     if (error) throw error;
 
-    // Optionnel: Mettre à jour l'email dans Auth si changé
     if (values.email) {
-        await supabaseAdmin.auth.admin.updateUserById(id, { email: values.email });
+      await supabaseAdmin.auth.admin.updateUserById(id, { email: values.email });
     }
 
     revalidatePath('/livreurs');
     return { success: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Une erreur est survenue";
+    return { success: false, error: message };
+  }
+}
+
+export async function resetPasswordLivreurAction(livreurId: string) {
+  try {
+    const callerProfile = await checkAdminAuth();
+
+    const { data: targetProfile, error: targetError } = await supabaseAdmin
+      .from('utilisateurs')
+      .select('societe_id, email')
+      .eq('id', livreurId)
+      .single();
+
+    if (targetError || !targetProfile || targetProfile.societe_id !== callerProfile.societe_id) {
+      throw new Error("Utilisateur introuvable ou acces refuse");
+    }
+
+    if (!targetProfile.email) {
+      throw new Error("Cet utilisateur n'a pas d'email enregistre");
+    }
+
+    // Generer un lien de reset password
+    const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(targetProfile.email, {
+      redirectTo: process.env.NEXT_PUBLIC_APP_URL || 'https://anjara-app.vercel.app'
+    });
+
+    if (resetError) {
+      throw new Error("Erreur envoi email : " + resetError.message);
+    }
+
+    return { success: true, message: "Email de reinitialisation envoye a " + targetProfile.email };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Une erreur est survenue";
     return { success: false, error: message };
