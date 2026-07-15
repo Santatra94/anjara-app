@@ -26,6 +26,7 @@ import { Utilisateur } from "@/types";
 import { useEffect } from "react";
 import { useZones } from "@/hooks/useZones";
 import { MobileSheet } from "@/components/ui/mobile-sheet";
+import { Mail } from "lucide-react";
 
 type LivreurFormValues = z.infer<typeof livreurSchema>;
 
@@ -45,7 +46,6 @@ export function LivreurFormModal({ open, onOpenChange, onSubmit, initialData }: 
       nom: "",
       email: "",
       telephone: "",
-      password: "",
       zone_id: null,
       actif: true,
     },
@@ -65,7 +65,6 @@ export function LivreurFormModal({ open, onOpenChange, onSubmit, initialData }: 
         nom: "",
         email: "",
         telephone: "",
-        password: "anjara123",
         zone_id: null,
         actif: true,
       });
@@ -107,30 +106,20 @@ export function LivreurFormModal({ open, onOpenChange, onSubmit, initialData }: 
             name="email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Email (pour connexion)</FormLabel>
+                <FormLabel>Email (obligatoire)</FormLabel>
                 <FormControl>
                   <Input type="email" placeholder="ex: rakoto@anjara.mg" {...field} value={field.value || ""} />
                 </FormControl>
+                {!initialData && (
+                  <p className="text-xs text-blue-600 flex items-center gap-1 mt-1">
+                    <Mail className="h-3 w-3" />
+                    Un email d&apos;invitation sera envoye
+                  </p>
+                )}
                 <FormMessage />
               </FormItem>
             )}
           />
-
-          {!initialData && (
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Mot de passe initial</FormLabel>
-                  <FormControl>
-                    <Input type="password" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          )}
 
           <div className="grid grid-cols-2 gap-4">
             <FormField
@@ -196,7 +185,7 @@ export function LivreurFormModal({ open, onOpenChange, onSubmit, initialData }: 
               Annuler
             </Button>
             <Button type="submit" disabled={form.formState.isSubmitting}>
-              {initialData ? "Mettre a jour" : "Creer"}
+              {initialData ? "Mettre a jour" : "Creer et inviter"}
             </Button>
           </div>
         </form>
