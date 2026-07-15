@@ -21,7 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Plus, Trash2, Building2, Mail, Phone } from 'lucide-react'
+import { Plus, Trash2, Building2, Mail, Phone, KeyRound } from 'lucide-react'
 import { toast } from 'sonner'
 
 type SocieteData = { nom: string }
@@ -64,6 +64,7 @@ export default function GerantsPage() {
   const [modalOuvert, setModalOuvert] = useState(false)
   const [form, setForm] = useState<FormData>(FORM_DEFAULT)
   const [gerantASupprimer, setGerantASupprimer] = useState<GerantData | null>(null)
+  const [gerantAReset, setGerantAReset] = useState<GerantData | null>(null)
 
   const charger = useCallback(async () => {
     setLoading(true)
@@ -129,6 +130,24 @@ export default function GerantsPage() {
     }
   }
 
+  async function handleReset() {
+    if (!gerantAReset) return
+    try {
+      const res = await fetch('/api/gerants', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reset_password', id: gerantAReset.id }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Erreur')
+      toast.success(json.message || 'Email de reinitialisation envoye')
+      setGerantAReset(null)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Erreur reset'
+      toast.error(msg)
+    }
+  }
+
   return (
     <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -183,14 +202,27 @@ export default function GerantsPage() {
                     ) : '-'}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                      onClick={() => setGerantASupprimer(g)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-amber-500 hover:text-amber-700 hover:bg-amber-50"
+                        onClick={() => setGerantAReset(g)}
+                        disabled={!g.email}
+                        title="Reinitialiser mot de passe"
+                      >
+                        <KeyRound className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => setGerantASupprimer(g)}
+                        title="Supprimer"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -220,14 +252,6 @@ export default function GerantsPage() {
                     <p className="text-xs text-gray-500 truncate">{g.nom}</p>
                   </div>
                 </div>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                  onClick={() => setGerantASupprimer(g)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
               </div>
               <div className="space-y-1 border-t border-gray-100 pt-2">
                 {g.email && (
@@ -242,6 +266,27 @@ export default function GerantsPage() {
                     {g.telephone}
                   </a>
                 )}
+              </div>
+              <div className="grid grid-cols-2 gap-2 border-t border-gray-100 pt-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setGerantAReset(g)}
+                  className="text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                  disabled={!g.email}
+                >
+                  <KeyRound className="h-4 w-4 mr-1" />
+                  Reset MDP
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setGerantASupprimer(g)}
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Supprimer
+                </Button>
               </div>
             </div>
           ))
@@ -319,6 +364,23 @@ export default function GerantsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={!!gerantAReset} onOpenChange={(open) => { if (!open) setGerantAReset(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reinitialiser le mot de passe ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Un email sera envoye a &quot;{gerantAReset?.email}&quot; pour permettre a {gerantAReset?.nom} de definir un nouveau mot de passe.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction className="bg-amber-600 hover:bg-amber-700" onClick={handleReset}>
+              Envoyer l&apos;email
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
-    }
+}
