@@ -120,7 +120,8 @@ export async function GET(request: Request) {
     }
     const marge_brute = ca_produits_total - cout_produits_total
     const benefice_net = marge_brute - depenses_hors_matieres
-    const benefice_produits = Object.values(benefice_par_produit).sort((a, b) => b.benefice - a.benefice)    const graphique_mois = []
+    const benefice_produits = Object.values(benefice_par_produit).sort((a, b) => b.benefice - a.benefice)    
+const graphique_mois = []
     for (let i = 5; i >= 0; i--) {
       const mois = subMonths(aujourd_hui, i)
       const debutMois = format(startOfMonth(mois), 'yyyy-MM-dd')
