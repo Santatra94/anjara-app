@@ -2,7 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { createClient } from '@/lib/supabase/client';
 import {
   LayoutDashboard,
   MapPin,
@@ -13,22 +15,45 @@ import {
   ShoppingCart,
   TrendingDown,
   Landmark,
+  Building2,
 } from 'lucide-react';
 
-const navigation = [
-  { name: 'Tableau de bord', href: '/', icon: LayoutDashboard },
-  { name: 'Commandes', href: '/commandes', icon: ShoppingCart },
-  { name: 'Finance', href: '/finance', icon: Landmark },
-  { name: 'Depenses', href: '/depenses', icon: TrendingDown },
-  { name: 'Zones', href: '/zones', icon: MapPin },
-  { name: 'Types de PDV', href: '/types-pdv', icon: Store },
-  { name: 'Produits', href: '/produits', icon: Package },
-  { name: 'Clients', href: '/clients', icon: Users },
-  { name: 'Livreurs', href: '/livreurs', icon: Truck },
+const navigationBase = [
+  { name: 'Tableau de bord', href: '/', icon: LayoutDashboard, adminOnly: false },
+  { name: 'Commandes', href: '/commandes', icon: ShoppingCart, adminOnly: false },
+  { name: 'Finance', href: '/finance', icon: Landmark, adminOnly: false },
+  { name: 'Depenses', href: '/depenses', icon: TrendingDown, adminOnly: false },
+  { name: 'Gerants', href: '/gerants', icon: Building2, adminOnly: true },
+  { name: 'Zones', href: '/zones', icon: MapPin, adminOnly: false },
+  { name: 'Types de PDV', href: '/types-pdv', icon: Store, adminOnly: false },
+  { name: 'Produits', href: '/produits', icon: Package, adminOnly: false },
+  { name: 'Clients', href: '/clients', icon: Users, adminOnly: false },
+  { name: 'Livreurs', href: '/livreurs', icon: Truck, adminOnly: false },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [role, setRole] = useState<string>('GERANT');
+
+  useEffect(() => {
+    async function fetchRole() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from('utilisateurs')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+      if (data?.role) setRole(data.role);
+    }
+    fetchRole();
+  }, []);
+
+  const navigation = navigationBase.filter((item) => {
+    if (item.adminOnly && role !== 'ADMIN') return false;
+    return true;
+  });
 
   return (
     <div className="hidden md:flex flex-col w-64 bg-white border-r border-gray-200">
@@ -64,4 +89,4 @@ export function Sidebar() {
       </div>
     </div>
   );
-} 
+}
