@@ -134,4 +134,94 @@ export async function PATCH(request: Request) {
       .single()
 
     if (!profil || profil.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Reserve ADMIN' }, { status: 403 
+      return NextResponse.json({ error: 'Reserve ADMIN' }, { status: 403 })
+    }
+
+    const { action, id } = body
+
+    if (action !== 'reset_password') {
+      return NextResponse.json({ error: 'Action non supportee' }, { status: 400 })
+    }
+
+    if (!id) {
+      return NextResponse.json({ error: 'ID manquant' }, { status: 400 })
+    }
+
+    const admin = getAdminClient()
+
+    const { data: gerant, error: gerantError } = await admin
+      .from('utilisateurs')
+      .select('email, role')
+      .eq('id', id)
+      .single()
+
+    if (gerantError || !gerant) {
+      return NextResponse.json({ error: 'Gerant introuvable' }, { status: 404 })
+    }
+
+    if (gerant.role !== 'GERANT') {
+      return NextResponse.json({ error: 'Cet utilisateur n\'est pas un GERANT' }, { status: 400 })
+    }
+
+    if (!gerant.email) {
+      return NextResponse.json({ error: 'Cet utilisateur n\'a pas d\'email enregistre' }, { status: 400 })
+    }
+
+    const { error: resetError } = await admin.auth.resetPasswordForEmail(gerant.email, {
+      redirectTo: process.env.NEXT_PUBLIC_APP_URL || 'https://anjara-app.vercel.app'
+    })
+
+    if (resetError) {
+      return NextResponse.json({ error: 'Erreur envoi email : ' + resetError.message }, { status: 500 })
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Email de reinitialisation envoye a ' + gerant.email,
+    })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Erreur serveur'
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const supabase = createClient()
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Non autorise' }, { status: 401 })
+    }
+
+    const { data: profil } = await supabase
+      .from('utilisateurs')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (!profil || profil.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Reserve ADMIN' }, { status: 403 })
+    }
+
+    if (!id) {
+      return NextResponse.json({ error: 'ID manquant' }, { status: 400 })
+    }
+
+    const { error } = await supabase
+      .from('utilisateurs')
+      .update({ is_archived: true, actif: false })
+      .eq('id', id)
+      .eq('role', 'GERANT')
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch {
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+  }
+}
