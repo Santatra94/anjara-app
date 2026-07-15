@@ -12,17 +12,19 @@ import {
   Truck,
   ShoppingCart,
   TrendingDown,
+  Landmark,
 } from 'lucide-react';
 
 const navigation = [
   { name: 'Tableau de bord', href: '/', icon: LayoutDashboard },
   { name: 'Commandes', href: '/commandes', icon: ShoppingCart },
+  { name: 'Finance', href: '/finance', icon: Landmark },
+  { name: 'Depenses', href: '/depenses', icon: TrendingDown },
   { name: 'Zones', href: '/zones', icon: MapPin },
   { name: 'Types de PDV', href: '/types-pdv', icon: Store },
   { name: 'Produits', href: '/produits', icon: Package },
   { name: 'Clients', href: '/clients', icon: Users },
   { name: 'Livreurs', href: '/livreurs', icon: Truck },
-  { name: 'Depenses', href: '/depenses', icon: TrendingDown },
 ];
 
 export function Sidebar() {
