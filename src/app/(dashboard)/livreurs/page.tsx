@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useLivreurs } from '@/hooks/useLivreurs';
 import { Utilisateur } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Plus, Pencil, Trash2, MapPin, Phone, Mail, Truck } from 'lucide-react';
+import { Plus, Pencil, Trash2, MapPin, Phone, Mail, Truck, KeyRound } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -17,7 +17,7 @@ import {
 import { LivreurFormModal } from '@/components/modules/LivreurFormModal';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
-import { createLivreurAction, updateLivreurAction } from './actions';
+import { createLivreurAction, updateLivreurAction, resetPasswordLivreurAction } from './actions';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,6 +43,7 @@ export default function LivreursPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLivreur, setEditingLivreur] = useState<Utilisateur | null>(null);
   const [deletingLivreur, setDeletingLivreur] = useState<Utilisateur | null>(null);
+  const [resetLivreur, setResetLivreur] = useState<Utilisateur | null>(null);
 
   const handleAdd = () => {
     setEditingLivreur(null);
@@ -65,7 +66,10 @@ export default function LivreursPage() {
     }
 
     if (result.success) {
-      toast.success(editingLivreur ? "Livreur mis a jour" : "Livreur cree");
+      const msg = editingLivreur
+        ? "Livreur mis a jour"
+        : (result as { success: boolean; message?: string }).message || "Livreur cree et invite";
+      toast.success(msg);
       refresh();
     } else {
       toast.error("Erreur", { description: result.error });
@@ -88,6 +92,19 @@ export default function LivreursPage() {
     setDeletingLivreur(null);
   };
 
+  const confirmReset = async () => {
+    if (!resetLivreur) return;
+    const result = await resetPasswordLivreurAction(resetLivreur.id);
+
+    if (result.success) {
+      const msg = (result as { success: boolean; message?: string }).message || "Email de reinitialisation envoye";
+      toast.success(msg);
+    } else {
+      toast.error("Erreur", { description: result.error });
+    }
+    setResetLivreur(null);
+  };
+
   return (
     <ProtectedRoute allowedRoles={['ADMIN', 'GERANT']}>
       <div className="space-y-6">
@@ -101,7 +118,6 @@ export default function LivreursPage() {
           </Button>
         </div>
 
-        {/* VUE MOBILE - Cards */}
         <div className="md:hidden space-y-3">
           {loading ? (
             Array.from({ length: 3 }).map(function (_, i) {
@@ -158,12 +174,15 @@ export default function LivreursPage() {
                       )}
                     </div>
 
-                    <div className="flex gap-2 border-t pt-3">
-                      <Button variant="outline" size="sm" onClick={function () { handleEdit(livreur); }} className="flex-1">
-                        <Pencil className="h-4 w-4 mr-1" /> Modifier
+                    <div className="grid grid-cols-3 gap-2 border-t pt-3">
+                      <Button variant="outline" size="sm" onClick={function () { handleEdit(livreur); }}>
+                        <Pencil className="h-4 w-4 mr-1" /> Modif
                       </Button>
-                      <Button variant="outline" size="sm" onClick={function () { setDeletingLivreur(livreur); }} className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50">
-                        <Trash2 className="h-4 w-4 mr-1" /> Archiver
+                      <Button variant="outline" size="sm" onClick={function () { setResetLivreur(livreur); }} className="text-amber-600 hover:text-amber-700 hover:bg-amber-50" disabled={!livreur.email}>
+                        <KeyRound className="h-4 w-4 mr-1" /> Reset
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={function () { setDeletingLivreur(livreur); }} className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                        <Trash2 className="h-4 w-4 mr-1" /> Archi.
                       </Button>
                     </div>
                   </div>
@@ -173,7 +192,6 @@ export default function LivreursPage() {
           )}
         </div>
 
-        {/* VUE DESKTOP - Tableau */}
         <div className="hidden md:block rounded-md border bg-white">
           <Table>
             <TableHeader>
@@ -182,7 +200,7 @@ export default function LivreursPage() {
                 <TableHead>Zone Assignee</TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead>Statut</TableHead>
-                <TableHead className="w-[100px]">Actions</TableHead>
+                <TableHead className="w-[140px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -215,7 +233,7 @@ export default function LivreursPage() {
                           <Phone className="h-3 w-3 text-gray-400" />
                           {livreur.telephone}
                         </div>
-                      ) : "—"}
+                      ) : "-"}
                     </TableCell>
                     <TableCell>
                       {livreur.actif ? (
@@ -225,11 +243,14 @@ export default function LivreursPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => handleEdit(livreur)}>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => handleEdit(livreur)} title="Modifier">
                           <Pencil className="h-4 w-4 text-gray-500" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => setDeletingLivreur(livreur)}>
+                        <Button variant="ghost" size="icon" onClick={() => setResetLivreur(livreur)} title="Reinitialiser mot de passe" disabled={!livreur.email}>
+                          <KeyRound className="h-4 w-4 text-amber-500" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => setDeletingLivreur(livreur)} title="Archiver">
                           <Trash2 className="h-4 w-4 text-red-500" />
                         </Button>
                       </div>
@@ -260,6 +281,23 @@ export default function LivreursPage() {
               <AlertDialogCancel>Annuler</AlertDialogCancel>
               <AlertDialogAction onClick={confirmArchive} className="bg-red-600 hover:bg-red-700">
                 Archiver
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={!!resetLivreur} onOpenChange={() => setResetLivreur(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Reinitialiser le mot de passe ?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Un email sera envoye a &quot;{resetLivreur?.email}&quot; pour permettre a {resetLivreur?.nom} de definir un nouveau mot de passe.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuler</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmReset} className="bg-amber-600 hover:bg-amber-700">
+                Envoyer l&apos;email
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
