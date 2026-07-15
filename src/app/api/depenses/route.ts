@@ -1,41 +1,42 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
+function isToday(dateStr: string): boolean {
+  const today = new Date().toISOString().split('T')[0]
+  return dateStr === today
+}
+
+function canEdit(role: string, dateDepense: string): boolean {
+  if (role === 'ADMIN') return true
+  return isToday(dateDepense)
+}
+
 export async function GET(request: Request) {
   try {
     const supabase = createClient()
     const { searchParams } = new URL(request.url)
-
     const categorie = searchParams.get('categorie')
     const dateDebut = searchParams.get('date_debut')
     const dateFin = searchParams.get('date_fin')
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
       return NextResponse.json({ error: 'Non autorise' }, { status: 401 })
     }
 
-    const { data: utilisateur, error: utilisateurError } = await supabase
+    const { data: utilisateur } = await supabase
       .from('utilisateurs')
       .select('societe_id, role')
       .eq('id', user.id)
       .single()
 
-    if (utilisateurError || !utilisateur) {
-      return NextResponse.json({ error: 'Profil introuvable' }, { status: 403 })
-    }
-
-    if (utilisateur.role === 'LIVREUR') {
+    if (!utilisateur || utilisateur.role === 'LIVREUR') {
       return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
     }
 
     let query = supabase
       .from('depenses')
-      .select('*')
+      .select('*, matieres_premieres(nom, unite)')
       .eq('societe_id', utilisateur.societe_id)
       .eq('is_archived', false)
       .order('date_depense', { ascending: false })
@@ -44,11 +45,9 @@ export async function GET(request: Request) {
     if (categorie && categorie !== 'TOUTES') {
       query = query.eq('categorie', categorie)
     }
-
     if (dateDebut) {
       query = query.gte('date_depense', dateDebut)
     }
-
     if (dateFin) {
       query = query.lte('date_depense', dateFin)
     }
@@ -59,7 +58,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ data: data || [] })
+    return NextResponse.json({ data: data || [], role: utilisateur.role })
   } catch {
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
@@ -70,46 +69,51 @@ export async function POST(request: Request) {
     const supabase = createClient()
     const body = await request.json()
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
       return NextResponse.json({ error: 'Non autorise' }, { status: 401 })
     }
 
-    const { data: utilisateur, error: utilisateurError } = await supabase
+    const { data: utilisateur } = await supabase
       .from('utilisateurs')
       .select('societe_id, role')
       .eq('id', user.id)
       .single()
 
-    if (utilisateurError || !utilisateur) {
-      return NextResponse.json({ error: 'Profil introuvable' }, { status: 403 })
-    }
-
-    if (utilisateur.role === 'LIVREUR') {
+    if (!utilisateur || utilisateur.role === 'LIVREUR') {
       return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
     }
 
-    const { categorie, libelle, montant, date_depense, notes } = body
+    const { categorie, libelle, montant, date_depense, notes, quantite, prix_unitaire, matiere_id } = body
 
-    if (!categorie || !libelle || !montant) {
+    if (!categorie || !montant) {
       return NextResponse.json({ error: 'Champs manquants' }, { status: 400 })
+    }
+
+    if (categorie === 'MATIERES_PREMIERES' && !matiere_id) {
+      return NextResponse.json({ error: 'Matiere premiere requise' }, { status: 400 })
+    }
+
+    if (categorie !== 'MATIERES_PREMIERES' && !libelle) {
+      return NextResponse.json({ error: 'Libelle requis' }, { status: 400 })
+    }
+
+    const insertData: Record<string, unknown> = {
+      societe_id: utilisateur.societe_id,
+      categorie,
+      libelle: libelle || null,
+      montant: Number(montant),
+      date_depense: date_depense || new Date().toISOString().split('T')[0],
+      notes: notes || null,
+      quantite: quantite ? Number(quantite) : null,
+      prix_unitaire: prix_unitaire ? Number(prix_unitaire) : null,
+      matiere_id: matiere_id || null,
     }
 
     const { data, error } = await supabase
       .from('depenses')
-      .insert({
-        societe_id: utilisateur.societe_id,
-        categorie,
-        libelle,
-        montant: Number(montant),
-        date_depense: date_depense || new Date().toISOString().split('T')[0],
-        notes: notes || null,
-      })
-      .select()
+      .insert(insertData)
+      .select('*, matieres_premieres(nom, unite)')
       .single()
 
     if (error) {
@@ -127,48 +131,61 @@ export async function PUT(request: Request) {
     const supabase = createClient()
     const body = await request.json()
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
       return NextResponse.json({ error: 'Non autorise' }, { status: 401 })
     }
 
-    const { data: utilisateur, error: utilisateurError } = await supabase
+    const { data: utilisateur } = await supabase
       .from('utilisateurs')
       .select('societe_id, role')
       .eq('id', user.id)
       .single()
 
-    if (utilisateurError || !utilisateur) {
-      return NextResponse.json({ error: 'Profil introuvable' }, { status: 403 })
-    }
-
-    if (utilisateur.role === 'LIVREUR') {
+    if (!utilisateur || utilisateur.role === 'LIVREUR') {
       return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
     }
 
-    const { id, categorie, libelle, montant, date_depense, notes } = body
+    const { id, categorie, libelle, montant, date_depense, notes, quantite, prix_unitaire, matiere_id } = body
 
     if (!id) {
       return NextResponse.json({ error: 'ID manquant' }, { status: 400 })
     }
 
-    const { data, error } = await supabase
+    const { data: existing } = await supabase
       .from('depenses')
-      .update({
-        categorie,
-        libelle,
-        montant: Number(montant),
-        date_depense,
-        notes: notes || null,
-      })
+      .select('date_depense')
       .eq('id', id)
       .eq('societe_id', utilisateur.societe_id)
       .eq('is_archived', false)
-      .select()
+      .single()
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Depense introuvable' }, { status: 404 })
+    }
+
+    if (!canEdit(utilisateur.role, existing.date_depense)) {
+      return NextResponse.json({ error: 'Modification impossible : seul le jour meme est autorise' }, { status: 403 })
+    }
+
+    const updateData: Record<string, unknown> = {
+      categorie,
+      libelle: libelle || null,
+      montant: Number(montant),
+      date_depense,
+      notes: notes || null,
+      quantite: quantite ? Number(quantite) : null,
+      prix_unitaire: prix_unitaire ? Number(prix_unitaire) : null,
+      matiere_id: matiere_id || null,
+    }
+
+    const { data, error } = await supabase
+      .from('depenses')
+      .update(updateData)
+      .eq('id', id)
+      .eq('societe_id', utilisateur.societe_id)
+      .eq('is_archived', false)
+      .select('*, matieres_premieres(nom, unite)')
       .single()
 
     if (error) {
@@ -187,26 +204,18 @@ export async function DELETE(request: Request) {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
       return NextResponse.json({ error: 'Non autorise' }, { status: 401 })
     }
 
-    const { data: utilisateur, error: utilisateurError } = await supabase
+    const { data: utilisateur } = await supabase
       .from('utilisateurs')
       .select('societe_id, role')
       .eq('id', user.id)
       .single()
 
-    if (utilisateurError || !utilisateur) {
-      return NextResponse.json({ error: 'Profil introuvable' }, { status: 403 })
-    }
-
-    if (utilisateur.role === 'LIVREUR') {
+    if (!utilisateur || utilisateur.role === 'LIVREUR') {
       return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
     }
 
@@ -214,12 +223,27 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'ID manquant' }, { status: 400 })
     }
 
+    const { data: existing } = await supabase
+      .from('depenses')
+      .select('date_depense')
+      .eq('id', id)
+      .eq('societe_id', utilisateur.societe_id)
+      .eq('is_archived', false)
+      .single()
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Depense introuvable' }, { status: 404 })
+    }
+
+    if (!canEdit(utilisateur.role, existing.date_depense)) {
+      return NextResponse.json({ error: 'Suppression impossible : seul le jour meme est autorise' }, { status: 403 })
+    }
+
     const { error } = await supabase
       .from('depenses')
       .update({ is_archived: true })
       .eq('id', id)
       .eq('societe_id', utilisateur.societe_id)
-      .eq('is_archived', false)
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
