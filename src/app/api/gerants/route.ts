@@ -32,7 +32,6 @@ export async function GET() {
       return NextResponse.json({ error: 'Reserve ADMIN' }, { status: 403 })
     }
 
-    // Recuperer tous les GERANTS avec leur societe
     const { data, error } = await supabase
       .from('utilisateurs')
       .select('id, nom, email, telephone, actif, created_at, societe_id, societes(nom)')
@@ -76,7 +75,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Champs manquants (nom societe, nom gerant, email)' }, { status: 400 })
     }
 
-    // Verifier que l'email n'existe pas deja
     const { data: existing } = await supabase
       .from('utilisateurs')
       .select('id')
@@ -87,7 +85,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Cet email existe deja' }, { status: 400 })
     }
 
-    // Inviter l'utilisateur via Supabase Admin (envoi email automatique)
     const admin = getAdminClient()
     const { data: invitation, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email)
 
@@ -95,7 +92,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Erreur invitation : ' + (inviteError?.message || 'inconnu') }, { status: 500 })
     }
 
-    // Creer la societe + le profil GERANT (via fonction SQL atomique)
     const { data: societeData, error: fnError } = await admin.rpc('fn_create_societe_avec_gerant', {
       p_nom_societe: nom_societe,
       p_user_id: invitation.user.id,
@@ -105,7 +101,6 @@ export async function POST(request: Request) {
     })
 
     if (fnError) {
-      // Rollback : supprimer l'user auth cree
       await admin.auth.admin.deleteUser(invitation.user.id)
       return NextResponse.json({ error: 'Erreur creation : ' + fnError.message }, { status: 500 })
     }
@@ -122,11 +117,10 @@ export async function POST(request: Request) {
   }
 }
 
-export async function DELETE(request: Request) {
+export async function PATCH(request: Request) {
   try {
     const supabase = createClient()
-    const { searchParams } = new URL(request.url)
-    const id = searchParams.get('id')
+    const body = await request.json()
 
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
@@ -140,26 +134,4 @@ export async function DELETE(request: Request) {
       .single()
 
     if (!profil || profil.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Reserve ADMIN' }, { status: 403 })
-    }
-
-    if (!id) {
-      return NextResponse.json({ error: 'ID manquant' }, { status: 400 })
-    }
-
-    // Soft delete
-    const { error } = await supabase
-      .from('utilisateurs')
-      .update({ is_archived: true, actif: false })
-      .eq('id', id)
-      .eq('role', 'GERANT')
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-
-    return NextResponse.json({ success: true })
-  } catch {
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
-  }
-                               }
+      return NextResponse.json({ error: 'Reserve ADMIN' }, { status: 403 
