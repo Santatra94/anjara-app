@@ -36,7 +36,7 @@ type PeriodeType = 'aujourd_hui' | 'ce_mois' | 'mois_precedent' | 'personnalise'
 type MouvementCaisse = { id: string; type_mouvement: 'INJECTION' | 'RETRAIT'; montant: number; libelle: string; date_mouvement: string; notes: string | null }
 type BeneficeProduit = { nom: string; categorie: string; ca: number; cout: number; benefice: number; quantite: number }
 type GraphiqueMois = { mois: string; ca: number; depenses: number; benefice: number }
-type FinanceData = { solde_global: number; total_encaissements: number; total_recouvrements: number; total_injections: number; total_retraits: number; total_depenses_global: number; ca_periode: number; total_depenses_periode: number; depenses_matieres: number; depenses_hors_matieres: number; marge_brute: number; benefice_net: number; depenses_par_categorie: Record<string, number>; benefice_produits: BeneficeProduit[]; graphique_mois: GraphiqueMois[]; mouvements_recents: MouvementCaisse[]; periode: { debut: string; fin: string; type: string } }
+type FinanceData = { solde_global: number; total_encaissements: number; total_recouvrements: number; total_injections: number; total_retraits: number; total_depenses_global: number; ca_periode: number; total_depenses_periode: number; depenses_matieres: number; depenses_hors_matieres: number; marge_brute: number; benefice_net: number; depenses_par_categorie: Record<string, number>; benefice_produits: BeneficeProduit[]; graphique_mois: GraphiqueMois[]; mouvements_recents: MouvementCaisse[]; periode: { debut: string; fin: string; type: string }; role?: string }
 type MouvementForm = { type_mouvement: 'INJECTION' | 'RETRAIT'; montant: string; libelle: string; date_mouvement: string; notes: string }
 
 function fmtAr(n: number): string { return new Intl.NumberFormat('fr-FR').format(Math.round(n)) + ' Ar' }
@@ -58,6 +58,8 @@ export default function FinancePage() {
   const [saving, setSaving] = useState(false)
   const [mvtASupprimer, setMvtASupprimer] = useState<MouvementCaisse | null>(null)
   const [form, setForm] = useState<MouvementForm>(FORM_DEFAULT)
+  const [role, setRole] = useState<string>('ADMIN')
+
   const charger = useCallback(async () => {
     setLoading(true)
     setErreur(null)
@@ -65,17 +67,22 @@ export default function FinancePage() {
       const params = new URLSearchParams({ type: periode, debut: dateDebut, fin: dateFin })
       const res = await fetch('/api/finance?' + params.toString())
       if (!res.ok) throw new Error('Erreur')
-      setData(await res.json())
+      const json = await res.json()
+      setData(json)
+      if (json.role) setRole(json.role)
     } catch { setErreur('Impossible de charger les donnees') }
     finally { setLoading(false) }
   }, [periode, dateDebut, dateFin])
+
   useEffect(() => { charger() }, [charger])
+
   function changerPeriode(type: PeriodeType) {
     setPeriodeType(type)
     if (type === 'aujourd_hui') { const d = format(today, 'yyyy-MM-dd'); setDateDebut(d); setDateFin(d); return }
     if (type === 'ce_mois') { setDateDebut(format(startOfMonth(today), 'yyyy-MM-dd')); setDateFin(format(today, 'yyyy-MM-dd')); return }
     if (type === 'mois_precedent') { const mp = subMonths(today, 1); setDateDebut(format(startOfMonth(mp), 'yyyy-MM-dd')); setDateFin(format(endOfMonth(mp), 'yyyy-MM-dd')) }
   }
+
   async function handleSaveMouvement() {
     if (!form.libelle.trim() || !form.montant) return
     setSaving(true)
@@ -87,6 +94,7 @@ export default function FinancePage() {
     } catch { toast.error('Erreur enregistrement') }
     finally { setSaving(false) }
   }
+
   async function handleSupprimer() {
     if (!mvtASupprimer) return
     try {
@@ -95,10 +103,22 @@ export default function FinancePage() {
       toast.success('Mouvement supprime'); setMvtASupprimer(null); await charger()
     } catch { toast.error('Erreur suppression') }
   }
+
+  function isToday(dateStr: string): boolean {
+    return dateStr === new Date().toISOString().split('T')[0]
+  }
+
+  function peutSupprimerMvt(dateMvt: string): boolean {
+    if (role === 'ADMIN') return true
+    return isToday(dateMvt)
+  }
+
   const dateJour = format(today, 'EEEE d MMMM yyyy', { locale: fr })
+
   if (loading) return (<div className="flex items-center justify-center min-h-96"><p className="text-sm text-gray-500">Chargement...</p></div>)
   if (erreur || !data) return (<div className="flex items-center justify-center min-h-96"><p className="text-sm text-red-500">{erreur || 'Erreur'}</p></div>)
   const categoriesEntries = Object.entries(data.depenses_par_categorie).sort((a, b) => b[1] - a[1])
+
   return (
     <div className="space-y-6 p-4 md:p-6 max-w-7xl mx-auto">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -134,7 +154,8 @@ export default function FinancePage() {
           <p className="text-2xl font-bold text-red-600">{fmtAr(data.total_depenses_periode)}</p>
           <p className="text-xs text-gray-400">Matieres : {fmtAr(data.depenses_matieres)} | Autres : {fmtAr(data.depenses_hors_matieres)}</p>
         </div>
-      </div>      <div className="bg-white rounded-xl border border-gray-200 p-5">
+      </div>
+      <div className="bg-white rounded-xl border border-gray-200 p-5">
         <h2 className="text-sm font-semibold text-gray-700 mb-4">Detail du solde global</h2>
         <div className="space-y-2 text-sm">
           <div className="flex justify-between py-2 border-b border-gray-50"><span className="text-gray-600">Encaissements totaux</span><span className={'font-bold ' + soldeColor(data.total_encaissements)}>{soldePrefix(data.total_encaissements)}{fmtAr(data.total_encaissements)}</span></div>
@@ -169,9 +190,10 @@ export default function FinancePage() {
         <p className="text-xs text-gray-400 mb-4">Marge brute periode : {fmtAr(data.marge_brute)}</p>
         <div className="hidden md:block overflow-x-auto"><table className="w-full text-sm"><thead className="bg-gray-50 border-b border-gray-200"><tr><th className="text-left px-3 py-2 text-xs text-gray-500 font-medium">Produit</th><th className="text-left px-3 py-2 text-xs text-gray-500 font-medium">Cat.</th><th className="text-right px-3 py-2 text-xs text-gray-500 font-medium">Qte</th><th className="text-right px-3 py-2 text-xs text-gray-500 font-medium">CA</th><th className="text-right px-3 py-2 text-xs text-gray-500 font-medium">Cout</th><th className="text-right px-3 py-2 text-xs text-gray-500 font-medium">Benef.</th></tr></thead><tbody className="divide-y divide-gray-100">{data.benefice_produits.map((p) => { const cc = p.categorie === 'YAOURT' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'; return (<tr key={p.nom} className="hover:bg-gray-50"><td className="px-3 py-3 font-medium text-gray-900">{p.nom}</td><td className="px-3 py-3"><span className={'inline-flex px-2 py-0.5 rounded-full text-xs font-medium ' + cc}>{p.categorie}</span></td><td className="px-3 py-3 text-right text-gray-600">{p.quantite}</td><td className="px-3 py-3 text-right text-blue-600">{fmtAr(p.ca)}</td><td className="px-3 py-3 text-right text-red-500">{fmtAr(p.cout)}</td><td className={'px-3 py-3 text-right font-bold ' + soldeColor(p.benefice)}>{fmtAr(p.benefice)}</td></tr>) })}</tbody></table></div>
         <div className="md:hidden space-y-3">{data.benefice_produits.map((p) => (<div key={p.nom} className="border border-gray-100 rounded-lg p-3 space-y-2"><div className="flex items-center justify-between"><p className="font-semibold text-gray-900 text-sm">{p.nom}</p><span className={'text-sm font-bold ' + soldeColor(p.benefice)}>{fmtAr(p.benefice)}</span></div><div className="grid grid-cols-3 gap-2 text-xs"><div><p className="text-gray-400">CA</p><p className="font-medium text-blue-600">{fmtAr(p.ca)}</p></div><div><p className="text-gray-400">Cout</p><p className="font-medium text-red-500">{fmtAr(p.cout)}</p></div><div><p className="text-gray-400">Qte</p><p className="font-medium text-gray-700">{p.quantite}</p></div></div></div>))}</div>
-      </div>)}      <div className="bg-white rounded-xl border border-gray-200 p-5">
+      </div>)}
+      <div className="bg-white rounded-xl border border-gray-200 p-5">
         <div className="flex items-center justify-between mb-4"><h2 className="text-sm font-semibold text-gray-700">Mouvements caisse recents</h2><Button size="sm" variant="outline" onClick={() => setModalMvt(true)}><Plus className="h-3.5 w-3.5 mr-1" />Ajouter</Button></div>
-        {data.mouvements_recents.length === 0 ? (<p className="text-sm text-gray-400 text-center py-4">Aucun mouvement</p>) : (<div className="space-y-2">{data.mouvements_recents.map((m) => { const isInj = m.type_mouvement === 'INJECTION'; return (<div key={m.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0"><div className="flex items-center gap-3"><div className={'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ' + (isInj ? 'bg-emerald-100' : 'bg-red-100')}>{isInj ? <ArrowUpCircle className="h-4 w-4 text-emerald-600" /> : <ArrowDownCircle className="h-4 w-4 text-red-600" />}</div><div><p className="text-sm font-medium text-gray-900">{m.libelle}</p><p className="text-xs text-gray-400">{new Date(m.date_mouvement + 'T00:00:00').toLocaleDateString('fr-FR')}</p></div></div><div className="flex items-center gap-3"><span className={'font-semibold text-sm ' + (isInj ? 'text-emerald-600' : 'text-red-600')}>{isInj ? '+' : '-'}{fmtAr(m.montant)}</span><button onClick={() => setMvtASupprimer(m)} className="text-gray-300 hover:text-red-500 transition-colors"><Trash2 className="h-4 w-4" /></button></div></div>) })}</div>)}
+        {data.mouvements_recents.length === 0 ? (<p className="text-sm text-gray-400 text-center py-4">Aucun mouvement</p>) : (<div className="space-y-2">{data.mouvements_recents.map((m) => { const isInj = m.type_mouvement === 'INJECTION'; const canDelete = peutSupprimerMvt(m.date_mouvement); return (<div key={m.id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0"><div className="flex items-center gap-3"><div className={'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ' + (isInj ? 'bg-emerald-100' : 'bg-red-100')}>{isInj ? <ArrowUpCircle className="h-4 w-4 text-emerald-600" /> : <ArrowDownCircle className="h-4 w-4 text-red-600" />}</div><div><p className="text-sm font-medium text-gray-900">{m.libelle}</p><p className="text-xs text-gray-400">{new Date(m.date_mouvement + 'T00:00:00').toLocaleDateString('fr-FR')}</p></div></div><div className="flex items-center gap-3"><span className={'font-semibold text-sm ' + (isInj ? 'text-emerald-600' : 'text-red-600')}>{isInj ? '+' : '-'}{fmtAr(m.montant)}</span><button onClick={() => setMvtASupprimer(m)} disabled={!canDelete} title={!canDelete ? 'Suppression impossible apres le jour meme' : ''} className="text-gray-300 hover:text-red-500 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:text-gray-300"><Trash2 className="h-4 w-4" /></button></div></div>) })}</div>)}
       </div>
       <Dialog open={modalMvt} onOpenChange={(open) => { if (!open) setModalMvt(false) }}>
         <DialogContent className="sm:max-w-md">
