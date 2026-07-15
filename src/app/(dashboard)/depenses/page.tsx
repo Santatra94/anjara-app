@@ -51,7 +51,8 @@ const FORM_DEFAULT: DepenseFormData & {
   prix_unitaire: '',
   matiere_id: '',
   dernierChampModifie: 'montant',
-}export default function DepensesPage() {
+}
+export default function DepensesPage() {
   const {
     depenses, filtres, setFiltres, loading, saving,
     totalDepenses, createDepense, updateDepense, deleteDepense,
