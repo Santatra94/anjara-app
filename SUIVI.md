@@ -63,6 +63,245 @@
 
 ## 📅 Journal de travail
 
+# 📊 Anjara — Suivi du projet
+
+> Document maintenu à jour pour ne jamais perdre le contexte entre les sessions.
+
+---
+
+## 🎯 Vision produit
+
+**Anjara** = ERP mobile-first pour gestion de tournée commerciale (yaourts + jus) à Madagascar.
+
+- **Multi-tenant** : plusieurs sociétés isolées (1 GERANT = 1 société = 1 business)
+- **3 rôles** : ADMIN (Santatra, unique), GERANT (patron d'un business), LIVREUR (employé)
+- **Workflow** : Commande → Préparation → Livraison → Recouvrement
+
+---
+
+## 🛠️ Stack technique
+
+- **Frontend** : Next.js 14 (App Router) + TypeScript + Tailwind CSS + shadcn/ui
+- **Backend** : Supabase (PostgreSQL + Auth + RLS + Storage)
+- **PWA** : next-pwa + service worker
+- **Hébergement** : Vercel — https://anjara-app.vercel.app
+- **Repo** : https://github.com/Santatra94/anjara-app
+
+---
+
+## 📊 État actuel (16/07/2026 - fin de session)
+
+### ✅ Fonctionnalités opérationnelles
+
+**Authentification & Multi-tenant**
+- Login/logout Supabase Auth
+- Isolation par societe_id (RLS)
+- AuthProvider Context
+- **Invitation email GERANT** (par ADMIN)
+- **Invitation email LIVREUR** (par GERANT ou ADMIN)
+- **Reset password GERANT/LIVREUR** avec email
+- Page `/definir-mot-de-passe` qui gère invitation + reset (extraction fragment URL)
+
+**Gestion multi-business (ADMIN uniquement)**
+- Créer un business = créer une société + inviter un GERANT par email
+- Chaque GERANT gère sa propre société isolée
+- Bouton reset password pour chaque GERANT
+- Suppression GERANT + suppression Auth (email réutilisable)
+
+**Configuration (ADMIN/GERANT)**
+- Zones, Types PDV, Produits, Clients, Livreurs
+- Matières premières configurables
+- CRUD complet + soft delete
+
+**Workflow commande**
+- Création commande (ADMIN + LIVREUR)
+- Préparation détaillée
+- Livraison + encaissement
+- Recouvrement cyclique
+
+**Interface LIVREUR mobile**
+- PWA installable
+- Tournée du jour drag-and-drop
+- FAB "+" nouvelle commande
+- Caisse temps réel
+- Historique
+- Bottom navigation
+
+**Module Dépenses**
+- 8 catégories (MATIERES_PREMIERES, SALAIRES, TRANSPORT, LOYER, MARKETING, CHARBON, ELECTRICITE, AUTRES)
+- Champ quantité + prix unitaire avec calcul auto bidirectionnel
+- Choix obligatoire d'une matière première pour MATIERES_PREMIERES
+- Blocage GERANT : modif/suppression jour même uniquement
+- Filtres période + catégorie
+
+**Module Finance**
+- Solde global depuis le début (Encaissements + Recouvrements + Injections − Retraits − Dépenses)
+- Bénéfice net (Marge brute − Dépenses hors matières)
+- Injections / Retraits d'argent
+- Graphique CA vs Dépenses sur 6 mois
+- Répartition dépenses par catégorie
+- Bénéfice par produit (basé sur prix_achat)
+- Blocage GERANT UI + API
+
+**Sécurité**
+- 4 modes de paiement
+- Numéros téléphone normalisés (+261)
+- Codes auto-générés
+- Soft delete uniquement
+- Variable env `SUPABASE_SERVICE_ROLE_KEY` pour invitation email
+
+---
+
+## 📅 Journal de travail
+
+### 16/07/2026 — Session marathon Dépenses + Finance + Multi-business
+
+**Durée** : ~7h
+
+**Module Dépenses complet**
+- Table `depenses` + RLS + triggers
+- API CRUD
+- Hook useDepenses
+- Page mobile + desktop
+- Table `matieres_premieres` + gestion
+- Champs quantité + prix unitaire calcul auto
+- Blocage GERANT jour même
+- Contrainte libelle rendue nullable
+
+**Module Finance complet**
+- Table `mouvements_caisse` (INJECTION/RETRAIT)
+- API `/api/finance` avec calculs complexes
+- Page complète : solde, bénéfice, graphique, répartition, bénéfice par produit
+- Blocage GERANT UI (icône désactivée)
+
+**Multi-tenant Business**
+- Fonctions SQL `fn_create_societe_avec_gerant`, `fn_create_livreur_dans_societe`
+- API `/api/gerants` avec Supabase Admin (invitation email)
+- Page `/gerants` réservée ADMIN
+- Fix RLS : ADMIN doit bypass RLS pour voir tous les GERANTS (service_role)
+- Suppression GERANT supprime aussi le compte Auth
+
+**Système d'invitation email**
+- Livreur `actions.ts` refait : `inviteUserByEmail` au lieu de `createUser`
+- Retrait du champ password du formulaire livreur
+- Schema Zod : email obligatoire, plus de password
+- Bouton "Reset password" sur /livreurs (KeyRound ambre)
+- Bouton "Reset password" sur /gerants (KeyRound ambre)
+- Action `resetPasswordLivreurAction`
+- API PATCH sur /api/gerants pour reset password
+
+**Page `/definir-mot-de-passe`**
+- Nouvelle page qui gère à la fois invitation initiale + reset password
+- Extraction manuelle des tokens depuis le fragment URL (#access_token=...)
+- `setSession` explicite avec access_token + refresh_token
+- Nettoyage de l'URL après session établie
+- Formulaire nouveau mot de passe + confirmation
+
+**Fix middleware**
+- Ajout `/definir-mot-de-passe` dans les routes publiques
+- Sinon le middleware bloquait la page et redirigeait vers /login
+
+**Navigation**
+- Ajout Finance + Dépenses + Gérants dans Sidebar
+- Ajout Finance + Dépenses + Gérants dans BottomNavAdmin
+- Lien "Gérants" masqué pour role GERANT (adminOnly filter)
+- Fetch role côté client pour filtrer les liens
+
+**Bugs corrigés en cours**
+- SWC parser sensible aux caractères Unicode et sauts de ligne manquants
+- Supabase join produits retournait un tableau → helper `extractProduit`
+- Fonctions dans try block (strict mode) → arrow functions
+- Contrainte NOT NULL sur libelle depenses → nullable
+- RLS bloquait ADMIN de voir GERANTS des autres sociétés → service_role
+- Fragment URL non détecté → extraction manuelle + setSession
+
+**Configuration Supabase**
+- Site URL : `https://anjara-app.vercel.app`
+- Redirect URLs : `/**` + `/definir-mot-de-passe`
+- SMTP par défaut Supabase (limite ~4 emails/heure — suffisant pour tester)
+
+**Variables env Vercel**
+- `SUPABASE_SERVICE_ROLE_KEY` ✅
+- `NEXT_PUBLIC_APP_URL` (optionnel, fallback en dur si absent)
+
+---
+
+### 15/07/2026 — Bottom sheets + Mode livreur ADMIN/GERANT
+
+- MobileSheet wrapper
+- 5 modales converties en bottom sheets
+- Header mobile compact
+- Layout (livreur) accepte 3 rôles
+- Hook `useTourneeAdmin`
+- Page `/tournee-admin`
+- Boutons Livrer/Recouvrer dans CommandesList
+
+---
+
+### 14/07/2026 — Interface mobile ADMIN/GERANT
+
+- BottomNavAdmin
+- Menu "Plus" drawer
+- 6 pages transformées en cards mobiles
+
+---
+
+### 13/07/2026 — Dashboards (PROMPT 6)
+
+- Dashboard ADMIN/GERANT
+- Dashboard LIVREUR mobile
+- Icônes PWA
+- Préparation intelligente
+
+---
+
+### 12/07/2026 — Session marathon (bugs + features livreur)
+
+- Fix routing LIVREUR + trigger SQL + RLS
+- Création commande par LIVREUR
+- Trigger assignation intelligent
+- AuthProvider Context
+
+---
+
+## 🔜 TODO Prochaine session
+
+### 🥇 Priorité 1 — Impersonation ADMIN
+**"Comment ADMIN peut entrer dans quelle société"**
+- Sélecteur "Voir en tant que..." dans header ADMIN
+- OU page `/admin/societes` avec bouton "Entrer dans ce business"
+- Cookie `impersonate_societe_id` respecté par l'API
+- Permet à l'ADMIN de faire du support / debug sur chaque business
+
+### 🥈 Priorité 2 — Module Stock (PROMPT 8)
+- Table `mouvements_stock`
+- Interface production
+- Stock ingrédients + produits finis
+- Alerte stock faible
+
+### 🥉 Priorité 3 — Module Recettes (PROMPT 9)
+- Table `recettes` par produit
+- Calcul coût de revient dynamique
+- Marge par produit basée sur matières premières récentes
+- Optimiseur distribution parfums
+
+### 🏅 Priorité 4 — Améliorations
+- Notifications intelligentes
+- Rapports PDF/Excel
+- Audit trail UI
+
+---
+
+## 🐛 Bugs connus non-bloquants
+
+- Vitesse navigation (~1-2s après action)
+- Pas d'affichage temps réel dette dans formulaire recouvrement
+- Fragment URL parfois cassé sur WebView Gmail mobile (workaround : copier lien dans navigateur normal)
+
+---
+
+## 📁 Architecture des fichiers
+
 ### 15/07/2026 — TODO C + TODO D (Bottom sheets + Mode livreur ADMIN/GERANT)
 
 **TODO C — Améliorations mobile**
