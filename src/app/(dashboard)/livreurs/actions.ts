@@ -8,6 +8,9 @@ import { livreurSchema } from '@/lib/schemas';
 
 type LivreurValues = z.infer<typeof livreurSchema>;
 
+const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://anjara-app.vercel.app';
+const redirectDefinirMdp = appUrl + '/definir-mot-de-passe';
+
 async function checkAdminAuth() {
   const supabase = createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -45,7 +48,6 @@ export async function createLivreurAction(values: LivreurValues, societeId: stri
       throw new Error("Email obligatoire pour envoyer l'invitation");
     }
 
-    // Verifier que l'email n'existe pas deja
     const { data: existing } = await supabaseAdmin
       .from('utilisateurs')
       .select('id')
@@ -56,14 +58,14 @@ export async function createLivreurAction(values: LivreurValues, societeId: stri
       throw new Error("Cet email est deja utilise");
     }
 
-    // 1. Inviter l'utilisateur via email (au lieu de creer directement)
-    const { data: invitation, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(values.email);
+    const { data: invitation, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(values.email, {
+      redirectTo: redirectDefinirMdp,
+    });
 
     if (inviteError || !invitation.user) {
       throw new Error("Erreur invitation : " + (inviteError?.message || "inconnu"));
     }
 
-    // 2. Creer l'entree dans la table utilisateurs (profil)
     const { error: profileError } = await supabaseAdmin
       .from('utilisateurs')
       .insert([{
@@ -78,7 +80,6 @@ export async function createLivreurAction(values: LivreurValues, societeId: stri
       }]);
 
     if (profileError) {
-      // Rollback : supprimer le compte auth cree
       await supabaseAdmin.auth.admin.deleteUser(invitation.user.id);
       throw profileError;
     }
@@ -148,9 +149,8 @@ export async function resetPasswordLivreurAction(livreurId: string) {
       throw new Error("Cet utilisateur n'a pas d'email enregistre");
     }
 
-    // Generer un lien de reset password
     const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(targetProfile.email, {
-      redirectTo: process.env.NEXT_PUBLIC_APP_URL || 'https://anjara-app.vercel.app'
+      redirectTo: redirectDefinirMdp,
     });
 
     if (resetError) {
