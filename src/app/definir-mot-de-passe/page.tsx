@@ -21,26 +21,43 @@ export default function DefinirMotDePassePage() {
   const [success, setSuccess] = useState(false)
 
   useEffect(() => {
-    async function checkSession() {
-      // Attendre un peu que Supabase traite le fragment URL (#access_token=...)
-      await new Promise((resolve) => setTimeout(resolve, 500))
+    async function initSession() {
+      try {
+        // 1. Extraire les tokens du fragment URL (#access_token=...)
+        const hash = window.location.hash.substring(1)
+        const params = new URLSearchParams(hash)
+        const accessToken = params.get('access_token')
+        const refreshToken = params.get('refresh_token')
 
-      // Ecouter les changements d'auth
-      const {
-        data: { subscription },
-      } = supabase.auth.onAuthStateChange((event, session) => {
-        if (event === 'SIGNED_IN' || event === 'PASSWORD_RECOVERY' || event === 'INITIAL_SESSION') {
-          setSessionOk(!!session)
+        if (accessToken && refreshToken) {
+          // 2. Etablir manuellement la session avec les tokens
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          })
+
+          if (error || !data.session) {
+            console.error('Erreur setSession:', error)
+            setSessionOk(false)
+            return
+          }
+
+          // 3. Nettoyer l'URL (retirer le hash)
+          window.history.replaceState(null, '', window.location.pathname)
+          setSessionOk(true)
+          return
         }
-      })
 
-      // Verifier la session actuelle
-      const { data: { session } } = await supabase.auth.getSession()
-      setSessionOk(!!session)
-
-      return () => subscription.unsubscribe()
+        // Sinon, verifier s'il y a deja une session
+        const { data: { session } } = await supabase.auth.getSession()
+        setSessionOk(!!session)
+      } catch (e) {
+        console.error('Erreur init session:', e)
+        setSessionOk(false)
+      }
     }
-    checkSession()
+
+    initSession()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
