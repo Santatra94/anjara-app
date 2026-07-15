@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 import {
@@ -19,6 +19,7 @@ import {
   Route,
   TrendingDown,
   Landmark,
+  Building2,
 } from 'lucide-react';
 
 const navigation = [
@@ -28,19 +29,41 @@ const navigation = [
   { name: 'Livreurs', href: '/livreurs', icon: Truck },
 ];
 
-const menuPlus = [
-  { name: 'Finance', href: '/finance', icon: Landmark },
-  { name: 'Depenses', href: '/depenses', icon: TrendingDown },
-  { name: 'Tournee du jour', href: '/tournee-admin', icon: Route },
-  { name: 'Produits', href: '/produits', icon: Package },
-  { name: 'Zones', href: '/zones', icon: MapPin },
-  { name: 'Types de PDV', href: '/types-pdv', icon: Store },
+const menuPlusBase = [
+  { name: 'Finance', href: '/finance', icon: Landmark, adminOnly: false },
+  { name: 'Depenses', href: '/depenses', icon: TrendingDown, adminOnly: false },
+  { name: 'Gerants', href: '/gerants', icon: Building2, adminOnly: true },
+  { name: 'Tournee du jour', href: '/tournee-admin', icon: Route, adminOnly: false },
+  { name: 'Produits', href: '/produits', icon: Package, adminOnly: false },
+  { name: 'Zones', href: '/zones', icon: MapPin, adminOnly: false },
+  { name: 'Types de PDV', href: '/types-pdv', icon: Store, adminOnly: false },
 ];
 
 export function BottomNavAdmin() {
   const pathname = usePathname();
   const router = useRouter();
   const [menuOuvert, setMenuOuvert] = useState(false);
+  const [role, setRole] = useState<string>('GERANT');
+
+  useEffect(() => {
+    async function fetchRole() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from('utilisateurs')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+      if (data?.role) setRole(data.role);
+    }
+    fetchRole();
+  }, []);
+
+  const menuPlus = menuPlusBase.filter((item) => {
+    if (item.adminOnly && role !== 'ADMIN') return false;
+    return true;
+  });
 
   async function handleLogout() {
     const supabase = createClient();
@@ -55,10 +78,7 @@ export function BottomNavAdmin() {
   return (
     <>
       {menuOuvert && (
-        <div
-          className="fixed inset-0 bg-black/40 z-40 md:hidden"
-          onClick={fermerMenu}
-        />
+        <div className="fixed inset-0 bg-black/40 z-40 md:hidden" onClick={fermerMenu} />
       )}
 
       {menuOuvert && (
