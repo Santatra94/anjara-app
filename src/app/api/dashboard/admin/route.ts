@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { format, startOfMonth, endOfMonth, subMonths, subDays } from 'date-fns'
+import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns'
 
 function isAuthorized(role: string | undefined): boolean {
   return role === 'ADMIN' || role === 'GERANT'
@@ -64,110 +64,22 @@ export async function GET(request: Request) {
   }
 
   const { debut, fin } = getDateRange(type)
-  const dateAujourdhui = format(aujourd_hui, 'yyyy-MM-dd')
 
-  const { data: livreurs } = await supabase
-    .from('v_performance_livreurs')
-    .select('*')
-    .eq('societe_id', societe_id)
+  // UNE SEULE requete SQL au lieu de 7
+  const { data, error } = await supabase.rpc('fn_dashboard_admin', {
+    p_societe_id: societe_id,
+    p_debut: debut,
+    p_fin: fin,
+  })
 
-  const { data: clients } = await supabase
-    .from('v_clients_dettes')
-    .select('*')
-    .eq('societe_id', societe_id)
-    .order('dette_actuelle', { ascending: false })
-    .limit(5)
-
-  const { data: production } = await supabase
-    .from('v_production_du_jour')
-    .select('*')
-    .eq('societe_id', societe_id)
-    .eq('date_jour', dateAujourdhui)
-    .maybeSingle()
-
-  const { data: commandes } = await supabase
-    .from('commandes')
-    .select('statut')
-    .eq('societe_id', societe_id)
-    .gte('date_livraison', debut)
-    .lte('date_livraison', fin)
-
-  const commandes_par_statut: Record<string, number> = {}
-  let nb_commandes_total = 0
-  if (commandes) {
-    for (const c of commandes) {
-      commandes_par_statut[c.statut] = (commandes_par_statut[c.statut] || 0) + 1
-      nb_commandes_total++
-    }
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  const debutIso = debut + 'T00:00:00'
-  const finIso = fin + 'T23:59:59'
-
-  const { data: encaissements } = await supabase
-    .from('encaissements')
-    .select('montant_encaisse, date_encaissement')
-    .eq('societe_id', societe_id)
-    .gte('date_encaissement', debutIso)
-    .lte('date_encaissement', finIso)
-
-  let ca_periode = 0
-  if (encaissements) {
-    for (const e of encaissements) {
-      ca_periode += Number(e.montant_encaisse || 0)
-    }
-  }
-
-  const { data: allDettes } = await supabase
-    .from('v_clients_dettes')
-    .select('dette_actuelle')
-    .eq('societe_id', societe_id)
-
-  let dette_totale = 0
-  if (allDettes) {
-    for (const d of allDettes) {
-      dette_totale += Number(d.dette_actuelle || 0)
-    }
-  }
-
-  const debut30j = format(subDays(aujourd_hui, 29), 'yyyy-MM-dd')
-  const debut30jIso = debut30j + 'T00:00:00'
-  const finAujIso = dateAujourdhui + 'T23:59:59'
-
-  const { data: encaissements30j } = await supabase
-    .from('encaissements')
-    .select('montant_encaisse, date_encaissement')
-    .eq('societe_id', societe_id)
-    .gte('date_encaissement', debut30jIso)
-    .lte('date_encaissement', finAujIso)
-
-  const caParDate: Record<string, number> = {}
-  if (encaissements30j) {
-    for (const e of encaissements30j) {
-      const date = String(e.date_encaissement).substring(0, 10)
-      caParDate[date] = (caParDate[date] || 0) + Number(e.montant_encaisse || 0)
-    }
-  }
-
-  const graphique_ca = []
-  for (let i = 29; i >= 0; i--) {
-    const date = format(subDays(aujourd_hui, i), 'yyyy-MM-dd')
-    graphique_ca.push({
-      date,
-      ca: caParDate[date] || 0,
-    })
-  }
-
+  // La fonction retourne un JSONB complet
   return NextResponse.json({
-    ca_periode,
-    nb_commandes_total,
-    nb_commandes_jour: nb_commandes_total,
-    commandes_par_statut,
-    dette_totale,
-    top5_clients: clients || [],
-    performance_livreurs: livreurs || [],
-    graphique_ca,
-    production: production || null,
+    ...data,
+    nb_commandes_jour: data.nb_commandes_total,
     periode: { debut, fin, type },
   })
-                              }
+}
