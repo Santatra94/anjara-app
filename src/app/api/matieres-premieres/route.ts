@@ -1,6 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
+function isAuthorized(role: string | undefined): boolean {
+  return role === 'ADMIN' || role === 'GERANT'
+}
+
 export async function GET() {
   try {
     const supabase = createClient()
@@ -13,7 +17,7 @@ export async function GET() {
       .select('societe_id, role')
       .eq('id', user.id)
       .single()
-    if (!profil || profil.role === 'LIVREUR') {
+    if (!profil || !isAuthorized(profil.role)) {
       return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
     }
     const { data, error } = await supabase
@@ -44,7 +48,7 @@ export async function POST(request: Request) {
       .select('societe_id, role')
       .eq('id', user.id)
       .single()
-    if (!profil || profil.role === 'LIVREUR') {
+    if (!profil || !isAuthorized(profil.role)) {
       return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
     }
     const { nom, unite } = body
@@ -82,7 +86,7 @@ export async function PUT(request: Request) {
       .select('societe_id, role')
       .eq('id', user.id)
       .single()
-    if (!profil || profil.role === 'LIVREUR') {
+    if (!profil || !isAuthorized(profil.role)) {
       return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
     }
     const { id, nom, unite } = body
@@ -120,7 +124,7 @@ export async function DELETE(request: Request) {
       .select('societe_id, role')
       .eq('id', user.id)
       .single()
-    if (!profil || profil.role === 'LIVREUR') {
+    if (!profil || !isAuthorized(profil.role)) {
       return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
     }
     if (!id) {
@@ -138,4 +142,4 @@ export async function DELETE(request: Request) {
   } catch {
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
-        }
+      }
