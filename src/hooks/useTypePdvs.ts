@@ -1,38 +1,45 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import useSWR from 'swr';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { TypePdv } from '@/types';
 import { toast } from 'sonner';
 
+async function fetchTypesPdv(societeId: string): Promise<TypePdv[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('type_pdv')
+    .select('*')
+    .eq('societe_id', societeId)
+    .eq('is_archived', false)
+    .order('nom_type');
+
+  if (error) {
+    toast.error('Erreur chargement types PDV', { description: error.message });
+    throw error;
+  }
+  return data || [];
+}
+
 export function useTypePdvs() {
-  const [types, setTypes] = useState<TypePdv[]>([]);
-  const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const supabase = createClient();
 
-  const fetchTypes = useCallback(async () => {
-    if (!user) return;
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('type_pdv')
-      .select('*')
-      .eq('societe_id', user.societe.id)
-      .eq('is_archived', false)
-      .order('nom_type');
+  const cacheKey = user?.societe?.id ? ['type_pdv', user.societe.id] : null;
 
-    if (error) {
-      toast.error("Erreur", { description: error.message });
-    } else {
-      setTypes(data || []);
+  const { data, error, isLoading, mutate } = useSWR<TypePdv[]>(
+    cacheKey,
+    () => fetchTypesPdv(user!.societe.id),
+    {
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+      dedupingInterval: 5000,
     }
-    setLoading(false);
-  }, [user, supabase]);
+  );
 
-  useEffect(() => {
-    fetchTypes();
-  }, [fetchTypes]);
+  const types = data || [];
+  const loading = isLoading;
 
   const addType = async (values: { nom_type: string }) => {
     if (!user) return;
@@ -41,20 +48,28 @@ export function useTypePdvs() {
       societe_id: user.societe.id
     }]);
     if (error) throw error;
-    fetchTypes();
+    mutate();
   };
 
   const updateType = async (id: string, values: { nom_type: string }) => {
     const { error } = await supabase.from('type_pdv').update(values).eq('id', id);
     if (error) throw error;
-    fetchTypes();
+    mutate();
   };
 
   const archiveType = async (id: string) => {
     const { error } = await supabase.from('type_pdv').update({ is_archived: true }).eq('id', id);
     if (error) throw error;
-    fetchTypes();
+    mutate();
   };
 
-  return { types, loading, addType, updateType, archiveType, refresh: fetchTypes };
+  return {
+    types,
+    loading,
+    error,
+    addType,
+    updateType,
+    archiveType,
+    refresh: () => mutate(),
+  };
 }
