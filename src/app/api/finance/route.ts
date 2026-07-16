@@ -11,6 +11,10 @@ type BeneficeProduit = {
   quantite: number
 }
 
+function isAuthorized(role: string | undefined): boolean {
+  return role === 'ADMIN' || role === 'GERANT'
+}
+
 const getDateRange = (t: string, aujourd_hui: Date, searchParams: URLSearchParams) => {
   if (t === 'aujourd_hui') {
     const d = format(aujourd_hui, 'yyyy-MM-dd')
@@ -50,7 +54,7 @@ export async function GET(request: Request) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) return NextResponse.json({ error: 'Non autorise' }, { status: 401 })
     const { data: profil } = await supabase.from('utilisateurs').select('societe_id, role').eq('id', user.id).single()
-    if (!profil || profil.role === 'LIVREUR') return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
+    if (!profil || !isAuthorized(profil.role)) return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
     const societe_id = profil.societe_id
     const type = searchParams.get('type') || 'ce_mois'
     const aujourd_hui = new Date()
@@ -120,8 +124,9 @@ export async function GET(request: Request) {
     }
     const marge_brute = ca_produits_total - cout_produits_total
     const benefice_net = marge_brute - depenses_hors_matieres
-    const benefice_produits = Object.values(benefice_par_produit).sort((a, b) => b.benefice - a.benefice)    
-const graphique_mois = []
+    const benefice_produits = Object.values(benefice_par_produit).sort((a, b) => b.benefice - a.benefice)
+
+    const graphique_mois = []
     for (let i = 5; i >= 0; i--) {
       const mois = subMonths(aujourd_hui, i)
       const debutMois = format(startOfMonth(mois), 'yyyy-MM-dd')
@@ -150,8 +155,7 @@ const graphique_mois = []
   } catch {
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
-}
-
+            }
 export async function POST(request: Request) {
   try {
     const supabase = createClient()
@@ -159,7 +163,7 @@ export async function POST(request: Request) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) return NextResponse.json({ error: 'Non autorise' }, { status: 401 })
     const { data: profil } = await supabase.from('utilisateurs').select('societe_id, role').eq('id', user.id).single()
-    if (!profil || profil.role === 'LIVREUR') return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
+    if (!profil || !isAuthorized(profil.role)) return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
     const { type_mouvement, montant, libelle, date_mouvement, notes } = body
     if (!type_mouvement || !montant || !libelle) return NextResponse.json({ error: 'Champs manquants' }, { status: 400 })
     if (!['INJECTION', 'RETRAIT'].includes(type_mouvement)) return NextResponse.json({ error: 'Type invalide' }, { status: 400 })
@@ -186,7 +190,7 @@ export async function DELETE(request: Request) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) return NextResponse.json({ error: 'Non autorise' }, { status: 401 })
     const { data: profil } = await supabase.from('utilisateurs').select('societe_id, role').eq('id', user.id).single()
-    if (!profil || profil.role === 'LIVREUR') return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
+    if (!profil || !isAuthorized(profil.role)) return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
     if (!id) return NextResponse.json({ error: 'ID manquant' }, { status: 400 })
 
     const { data: existing } = await supabase.from('mouvements_caisse').select('date_mouvement').eq('id', id).eq('societe_id', profil.societe_id).eq('is_archived', false).single()
@@ -202,4 +206,4 @@ export async function DELETE(request: Request) {
   } catch {
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
-}
+      }
