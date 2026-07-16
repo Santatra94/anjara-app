@@ -63,6 +63,61 @@
 
 ## 📅 Journal de travail
 
+### 17/07/2026 — Session Securite + Performance + Audit
+
+**Duree** : ~2h
+
+**Phase 1 — Fix RLS faille finance**
+- Correction des policies RLS sur `depenses`, `matieres_premieres`, `mouvements_caisse`
+- Role change de `{public}` a `{authenticated}` (defense en profondeur)
+- Logique metier inchangee (multi-tenant + role ADMIN/GERANT preserves)
+
+**Phase 3 — Fix double fetch (performance)**
+- `Sidebar.tsx` : utilise `useAuth()` au lieu de refetch role via Supabase
+- `BottomNavAdmin.tsx` : idem + utilise `signOut` du context
+- Impact : 2 requetes reseau supprimees par chargement de page
+
+**Phase 3.5 — Auto-deconnexion apres inactivite**
+- Nouveau hook `src/hooks/useIdleLogout.ts`
+- Nouvelle modal `src/components/IdleWarningModal.tsx`
+- Integration dans `AuthProvider.tsx`
+- Durees : LIVREUR = 1h / ADMIN-GERANT = 30 min
+- Warning 1 min avant deconnexion (popup "Rester connecte")
+- Detection activite : mousedown, mousemove, keypress, scroll, touchstart, click
+
+**Phase 4 — Audit logs (tracabilite inviolable)**
+- Nouvelle table `audit_logs` avec RLS (ADMIN voit tout, GERANT voit sa societe)
+- Fonction generique `fn_audit_log()` avec SECURITY DEFINER
+- Triggers AFTER INSERT/UPDATE/DELETE sur 6 tables critiques :
+  - `commandes`, `depenses`, `mouvements_caisse`
+  - `recouvrements`, `encaissements`, `utilisateurs`
+- Snapshot complet des donnees (old_data + new_data en JSONB)
+- Impossible de contourner (trigger PostgreSQL)
+- Personne ne peut modifier/supprimer les logs manuellement
+- Extension `pg_cron` activee
+- Job automatique `cleanup_audit_logs_quarterly` :
+  - Execution : 1er jan/avr/jui/oct a 3h UTC
+  - Retention : 90 jours
+
+**Fichiers crees**
+- `src/hooks/useIdleLogout.ts`
+- `src/components/IdleWarningModal.tsx`
+
+**Fichiers modifies**
+- `src/components/AuthProvider.tsx`
+- `src/components/layout/Sidebar.tsx`
+- `src/components/layout/BottomNavAdmin.tsx`
+
+**SQL execute (non versionne dans /supabase/migrations/)**
+- ALTER POLICY sur depenses, matieres_premieres, mouvements_caisse
+- CREATE TABLE audit_logs + RLS
+- CREATE FUNCTION fn_audit_log + fn_cleanup_audit_logs
+- CREATE TRIGGER tr_audit_* sur 6 tables
+- ENABLE EXTENSION pg_cron
+- cron.schedule cleanup_audit_logs_quarterly
+
+---
+
 # 📊 Anjara — Suivi du projet
 
 > Document maintenu à jour pour ne jamais perdre le contexte entre les sessions.
