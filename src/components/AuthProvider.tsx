@@ -1,10 +1,8 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { useIdleLogout } from '@/hooks/useIdleLogout';
-import { IdleWarningModal } from '@/components/IdleWarningModal';
 import type { AuthUser, Utilisateur, Societe } from '@/types';
 
 interface AuthContextType {
@@ -16,11 +14,6 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-// Durees d'inactivite en millisecondes
-const TIMEOUT_LIVREUR_MS = 60 * 60 * 1000; // 1h
-const TIMEOUT_ADMIN_MS = 30 * 60 * 1000;   // 30 min
-const WARNING_MS = 60 * 1000;              // 1 min avant deconnexion
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -40,7 +33,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Une seule requete avec JOIN pour utilisateur + societe
       const { data: utilisateur, error: userError } = await supabase
         .from('utilisateurs')
         .select('*, societe:societes(*)')
@@ -68,10 +60,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Retirer la propriete societe imbriquee du user pour eviter la duplication
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { societe: _societe, ...utilisateurClean } = utilisateur as unknown as Utilisateur & { societe: Societe };
-
       setUser({
         id: authUser.id,
         email: authUser.email!,
@@ -107,13 +97,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const signOut = useCallback(async () => {
+  const signOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
     router.push('/login');
     router.refresh();
-  }, [supabase, router]);
+  };
 
-  // ========== AUTO-DECONNEXION ==========
-  const role = user?.utilisateur?.role;
-  const timeoutMs = role === 'LIVREUR' 
+  return (
+    <AuthContext.Provider value={{ user, loading, error, signOut, refresh: loadUser }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth doit etre utilise dans un AuthProvider');
+  }
+  return context;
+}
