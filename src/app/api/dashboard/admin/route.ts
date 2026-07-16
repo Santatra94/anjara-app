@@ -2,6 +2,10 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { format, startOfMonth, endOfMonth, subMonths, subDays } from 'date-fns'
 
+function isAuthorized(role: string | undefined): boolean {
+  return role === 'ADMIN' || role === 'GERANT'
+}
+
 export async function GET(request: Request) {
   const supabase = createClient()
   const { searchParams } = new URL(request.url)
@@ -21,7 +25,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Profil introuvable' }, { status: 403 })
   }
 
-  if (profil.role === 'LIVREUR') {
+  if (!isAuthorized(profil.role)) {
     return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
   }
 
@@ -166,4 +170,4 @@ export async function GET(request: Request) {
     production: production || null,
     periode: { debut, fin, type },
   })
-}
+                              }
