@@ -11,6 +11,10 @@ function canEdit(role: string, dateDepense: string): boolean {
   return isToday(dateDepense)
 }
 
+function isAuthorized(role: string | undefined): boolean {
+  return role === 'ADMIN' || role === 'GERANT'
+}
+
 export async function GET(request: Request) {
   try {
     const supabase = createClient()
@@ -30,7 +34,7 @@ export async function GET(request: Request) {
       .eq('id', user.id)
       .single()
 
-    if (!utilisateur || utilisateur.role === 'LIVREUR') {
+    if (!utilisateur || !isAuthorized(utilisateur.role)) {
       return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
     }
 
@@ -80,7 +84,7 @@ export async function POST(request: Request) {
       .eq('id', user.id)
       .single()
 
-    if (!utilisateur || utilisateur.role === 'LIVREUR') {
+    if (!utilisateur || !isAuthorized(utilisateur.role)) {
       return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
     }
 
@@ -142,7 +146,7 @@ export async function PUT(request: Request) {
       .eq('id', user.id)
       .single()
 
-    if (!utilisateur || utilisateur.role === 'LIVREUR') {
+    if (!utilisateur || !isAuthorized(utilisateur.role)) {
       return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
     }
 
@@ -215,7 +219,7 @@ export async function DELETE(request: Request) {
       .eq('id', user.id)
       .single()
 
-    if (!utilisateur || utilisateur.role === 'LIVREUR') {
+    if (!utilisateur || !isAuthorized(utilisateur.role)) {
       return NextResponse.json({ error: 'Acces refuse' }, { status: 403 })
     }
 
@@ -253,4 +257,4 @@ export async function DELETE(request: Request) {
   } catch {
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
-}
+        }
