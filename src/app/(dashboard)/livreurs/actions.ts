@@ -96,14 +96,25 @@ export async function updateLivreurAction(id: string, values: LivreurValues) {
   try {
     const callerProfile = await checkAdminAuth();
 
+    // SECURITE : Recuperer role + societe_id de la cible
     const { data: targetProfile, error: targetError } = await supabaseAdmin
       .from('utilisateurs')
-      .select('societe_id')
+      .select('societe_id, role')
       .eq('id', id)
       .single();
 
-    if (targetError || !targetProfile || targetProfile.societe_id !== callerProfile.societe_id) {
-      throw new Error("Utilisateur introuvable ou acces refuse");
+    if (targetError || !targetProfile) {
+      throw new Error("Utilisateur introuvable");
+    }
+
+    // SECURITE : Meme societe
+    if (targetProfile.societe_id !== callerProfile.societe_id) {
+      throw new Error("Acces refuse : autre societe");
+    }
+
+    // SECURITE : Cible doit etre un LIVREUR uniquement
+    if (targetProfile.role !== 'LIVREUR') {
+      throw new Error("Seuls les livreurs peuvent etre modifies via cette action");
     }
 
     const { error } = await supabaseAdmin
@@ -135,14 +146,25 @@ export async function resetPasswordLivreurAction(livreurId: string) {
   try {
     const callerProfile = await checkAdminAuth();
 
+    // SECURITE : Recuperer role + societe_id + email de la cible
     const { data: targetProfile, error: targetError } = await supabaseAdmin
       .from('utilisateurs')
-      .select('societe_id, email')
+      .select('societe_id, email, role')
       .eq('id', livreurId)
       .single();
 
-    if (targetError || !targetProfile || targetProfile.societe_id !== callerProfile.societe_id) {
-      throw new Error("Utilisateur introuvable ou acces refuse");
+    if (targetError || !targetProfile) {
+      throw new Error("Utilisateur introuvable");
+    }
+
+    // SECURITE : Meme societe
+    if (targetProfile.societe_id !== callerProfile.societe_id) {
+      throw new Error("Acces refuse : autre societe");
+    }
+
+    // SECURITE : Cible doit etre un LIVREUR uniquement
+    if (targetProfile.role !== 'LIVREUR') {
+      throw new Error("Cette action est reservee aux livreurs");
     }
 
     if (!targetProfile.email) {
