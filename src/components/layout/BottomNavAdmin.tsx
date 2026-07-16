@@ -1,10 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/components/AuthProvider';
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -41,39 +41,26 @@ const menuPlusBase = [
 
 export function BottomNavAdmin() {
   const pathname = usePathname();
-  const router = useRouter();
   const [menuOuvert, setMenuOuvert] = useState(false);
-  const [role, setRole] = useState<string>('GERANT');
-
-  useEffect(() => {
-    async function fetchRole() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data } = await supabase
-        .from('utilisateurs')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-      if (data?.role) setRole(data.role);
-    }
-    fetchRole();
-  }, []);
+  const { user, signOut } = useAuth();
+  const role = user?.utilisateur?.role ?? 'GERANT';
 
   const menuPlus = menuPlusBase.filter((item) => {
     if (item.adminOnly && role !== 'ADMIN') return false;
     return true;
   });
 
-  async function handleLogout() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push('/login');
-  }
+  const handleLogout = async () => {
+    await signOut();
+  };
 
-  function fermerMenu() {
+  const fermerMenu = () => {
     setMenuOuvert(false);
-  }
+  };
+
+  const ouvrirMenu = () => {
+    setMenuOuvert(true);
+  };
 
   return (
     <>
@@ -91,7 +78,7 @@ export function BottomNavAdmin() {
           </div>
 
           <div className="p-2">
-            {menuPlus.map(function (item) {
+            {menuPlus.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
               return (
@@ -137,7 +124,7 @@ export function BottomNavAdmin() {
       )}
 
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 h-16 flex items-center justify-around px-1 z-30 md:hidden">
-        {navigation.map(function (item) {
+        {navigation.map((item) => {
           const Icon = item.icon;
           const isActive =
             pathname === item.href ||
@@ -160,7 +147,7 @@ export function BottomNavAdmin() {
         })}
 
         <button
-          onClick={function () { setMenuOuvert(true); }}
+          onClick={ouvrirMenu}
           className={cn(
             'flex flex-col items-center justify-center flex-1 h-full gap-1 transition-colors',
             menuOuvert ? 'text-blue-600' : 'text-gray-400'
@@ -172,4 +159,4 @@ export function BottomNavAdmin() {
       </nav>
     </>
   );
-}
+    }
