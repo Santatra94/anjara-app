@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import useSWR from 'swr';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Produit } from '@/types';
@@ -10,33 +10,40 @@ import { produitSchema } from '@/lib/schemas';
 
 type ProduitValues = z.infer<typeof produitSchema>;
 
+async function fetchProduits(societeId: string): Promise<Produit[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('produits')
+    .select('*')
+    .eq('societe_id', societeId)
+    .eq('is_archived', false)
+    .order('nom_produit');
+
+  if (error) {
+    toast.error('Erreur chargement produits', { description: error.message });
+    throw error;
+  }
+  return data || [];
+}
+
 export function useProduits() {
-  const [produits, setProduits] = useState<Produit[]>([]);
-  const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const supabase = createClient();
 
-  const fetchProduits = useCallback(async () => {
-    if (!user) return;
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('produits')
-      .select('*')
-      .eq('societe_id', user.societe.id)
-      .eq('is_archived', false)
-      .order('nom_produit');
+  const cacheKey = user?.societe?.id ? ['produits', user.societe.id] : null;
 
-    if (error) {
-      toast.error("Erreur", { description: error.message });
-    } else {
-      setProduits(data || []);
+  const { data, error, isLoading, mutate } = useSWR<Produit[]>(
+    cacheKey,
+    () => fetchProduits(user!.societe.id),
+    {
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+      dedupingInterval: 5000,
     }
-    setLoading(false);
-  }, [user, supabase]);
+  );
 
-  useEffect(() => {
-    fetchProduits();
-  }, [fetchProduits]);
+  const produits = data || [];
+  const loading = isLoading;
 
   const addProduit = async (values: ProduitValues) => {
     if (!user) return;
@@ -45,20 +52,28 @@ export function useProduits() {
       societe_id: user.societe.id
     }]);
     if (error) throw error;
-    fetchProduits();
+    mutate();
   };
 
   const updateProduit = async (id: string, values: ProduitValues) => {
     const { error } = await supabase.from('produits').update(values).eq('id', id);
     if (error) throw error;
-    fetchProduits();
+    mutate();
   };
 
   const archiveProduit = async (id: string) => {
     const { error } = await supabase.from('produits').update({ is_archived: true }).eq('id', id);
     if (error) throw error;
-    fetchProduits();
+    mutate();
   };
 
-  return { produits, loading, addProduit, updateProduit, archiveProduit, refresh: fetchProduits };
+  return {
+    produits,
+    loading,
+    error,
+    addProduit,
+    updateProduit,
+    archiveProduit,
+    refresh: () => mutate(),
+  };
 }
