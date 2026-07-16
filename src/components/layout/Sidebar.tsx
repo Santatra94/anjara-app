@@ -2,9 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/components/AuthProvider';
 import {
   LayoutDashboard,
   MapPin,
@@ -33,22 +32,8 @@ const navigationBase = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [role, setRole] = useState<string>('GERANT');
-
-  useEffect(() => {
-    async function fetchRole() {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data } = await supabase
-        .from('utilisateurs')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-      if (data?.role) setRole(data.role);
-    }
-    fetchRole();
-  }, []);
+  const { user } = useAuth();
+  const role = user?.utilisateur?.role ?? 'GERANT';
 
   const navigation = navigationBase.filter((item) => {
     if (item.adminOnly && role !== 'ADMIN') return false;
