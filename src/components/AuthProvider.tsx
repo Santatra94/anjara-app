@@ -82,4 +82,72 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  };  useEffect(() => {
+    loadUser();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event) => {
+        if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setLoading(false);
+        } else if (event === 'SIGNED_IN') {
+          loadUser();
+        }
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const signOut = useCallback(async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    router.push('/login');
+    router.refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ========== AUTO-DECONNEXION APRES INACTIVITE ==========
+  const role = user?.utilisateur?.role;
+  const timeoutMs = role === 'LIVREUR' ? TIMEOUT_LIVREUR : TIMEOUT_ADMIN_GERANT;
+  const isConnected = !!user;
+
+  const handleIdleWarning = useCallback(() => {
+    // Le hook gere l'affichage via isWarning
+  }, []);
+
+  const handleIdleLogout = useCallback(() => {
+    signOut();
+  }, [signOut]);
+
+  const { isWarning, stayConnected } = useIdleLogout({
+    timeoutMs,
+    warningMs: WARNING_MS,
+    onWarning: handleIdleWarning,
+    onLogout: handleIdleLogout,
+    enabled: isConnected,
+  });
+
+  return (
+    <AuthContext.Provider value={{ user, loading, error, signOut, refresh: loadUser }}>
+      {children}
+      <IdleWarningModal
+        open={isWarning}
+        warningMs={WARNING_MS}
+        onStay={stayConnected}
+        onLogout={signOut}
+      />
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth doit etre utilise dans un AuthProvider');
+  }
+  return context;
+  }
