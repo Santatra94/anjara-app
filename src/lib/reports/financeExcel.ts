@@ -60,6 +60,14 @@ function subHeaderCell(value: string, colorHex: string) {
     },
   }
 }
+
+function rightCell(value: string) {
+  return {
+    v: value,
+    t: 's',
+    s: { alignment: { horizontal: 'right' } },
+  }
+}
 function buildResumeSheet(data: FinanceReportData): XLSX.WorkSheet {
   const rows: unknown[][] = []
 
@@ -115,7 +123,7 @@ function buildResumeSheet(data: FinanceReportData): XLSX.WorkSheet {
     ])
   }
 
-  const ws = XLSX.utils.aoa_to_sheet(rows as XLSX.AOA)
+  const ws = XLSX.utils.aoa_to_sheet(rows as unknown[][])
   ws['!cols'] = [{ wch: 32 }, { wch: 22 }, { wch: 10 }]
   return ws
 }
@@ -157,7 +165,7 @@ function buildProduitsSheet(data: FinanceReportData): XLSX.WorkSheet {
     boldCell(fmtAr(data.marge_brute)),
   ])
 
-  const ws = XLSX.utils.aoa_to_sheet(rows as XLSX.AOA)
+  const ws = XLSX.utils.aoa_to_sheet(rows as unknown[][])
   ws['!cols'] = [
     { wch: 28 },
     { wch: 20 },
@@ -167,7 +175,7 @@ function buildProduitsSheet(data: FinanceReportData): XLSX.WorkSheet {
     { wch: 20 },
   ]
   return ws
-    }
+}
 function buildMouvementsSheet(data: FinanceReportData): XLSX.WorkSheet {
   const rows: unknown[][] = []
 
@@ -207,7 +215,7 @@ function buildMouvementsSheet(data: FinanceReportData): XLSX.WorkSheet {
     boldCell('-' + fmtAr(data.total_retraits)),
   ])
 
-  const ws = XLSX.utils.aoa_to_sheet(rows as XLSX.AOA)
+  const ws = XLSX.utils.aoa_to_sheet(rows as unknown[][])
   ws['!cols'] = [
     { wch: 16 },
     { wch: 12 },
@@ -239,12 +247,4 @@ export function generateFinanceExcel(data: FinanceReportData): void {
     '.xlsx'
 
   XLSX.writeFile(wb, filename)
-  }
-
-function rightCell(value: string) {
-  return {
-    v: value,
-    t: 's',
-    s: { alignment: { horizontal: 'right' } },
-  }
 }
