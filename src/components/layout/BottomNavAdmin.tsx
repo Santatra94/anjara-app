@@ -20,6 +20,7 @@ import {
   TrendingDown,
   Landmark,
   Building2,
+  ChefHat,
 } from 'lucide-react';
 
 const navigation = [
@@ -32,6 +33,7 @@ const navigation = [
 const menuPlusBase = [
   { name: 'Finance', href: '/finance', icon: Landmark, adminOnly: false },
   { name: 'Depenses', href: '/depenses', icon: TrendingDown, adminOnly: false },
+  { name: 'Recettes', href: '/recettes', icon: ChefHat, adminOnly: false },
   { name: 'Gerants', href: '/gerants', icon: Building2, adminOnly: true },
   { name: 'Tournee du jour', href: '/tournee-admin', icon: Route, adminOnly: false },
   { name: 'Produits', href: '/produits', icon: Package, adminOnly: false },
@@ -159,4 +161,4 @@ export function BottomNavAdmin() {
       </nav>
     </>
   );
-    }
+}
