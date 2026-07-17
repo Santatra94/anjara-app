@@ -50,14 +50,38 @@ export function RecouvrementForm({ id }: { id: string }) {
 
   const fetchPromesse = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
+
+    // ROBUSTE : l'id recu peut etre soit promesse.id soit commande.id
+    // On essaie d'abord par promesse.id (cas normal depuis /tournee)
+    let { data } = await supabase
         .from('promesses_recouvrement')
         .select(`
             *,
             commande:commandes(code_commande, client:clients(nom_pdv))
         `)
         .eq('id', id)
-        .single();
+        .eq('statut', 'EN_ATTENTE')
+        .eq('is_archived', false)
+        .maybeSingle();
+
+    // Si pas trouve : on cherche par commande_id (cas depuis /commandes)
+    // On prend la promesse EN_ATTENTE la plus recente
+    if (!data) {
+      const { data: dataParCommande } = await supabase
+        .from('promesses_recouvrement')
+        .select(`
+            *,
+            commande:commandes(code_commande, client:clients(nom_pdv))
+        `)
+        .eq('commande_id', id)
+        .eq('statut', 'EN_ATTENTE')
+        .eq('is_archived', false)
+        .order('date_prevue', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      data = dataParCommande;
+    }
 
     if (data) {
         setPromesse(data as unknown as PromesseFull);
@@ -71,7 +95,7 @@ export function RecouvrementForm({ id }: { id: string }) {
   }, [fetchPromesse]);
 
   if (loading) return <div className="flex justify-center py-12"><Clock className="animate-spin h-8 w-8 text-orange-500" /></div>;
-  if (!promesse) return <div className="p-8 text-center text-red-500">Promesse non trouvée</div>;
+  if (!promesse) return <div className="p-8 text-center text-red-500">Aucune promesse en attente pour cette commande</div>;
 
   const detteRestante = promesse.montant_promis || 0;
   const resteAPresPaiement = Math.max(0, detteRestante - montantRecu);
@@ -84,8 +108,8 @@ export function RecouvrementForm({ id }: { id: string }) {
 
     setSubmitting(true);
 
-        try {
-      // 1. Créer le recouvrement
+    try {
+      // 1. Creer le recouvrement
       const { error: recError } = await supabase.from('recouvrements').insert([{
         commande_id: promesse.commande_id,
         livreur_id: user?.id,
@@ -96,7 +120,7 @@ export function RecouvrementForm({ id }: { id: string }) {
       }]);
       if (recError) throw recError;
 
-      // 2. Mettre à jour la promesse actuelle
+      // 2. Mettre a jour la promesse actuelle (via promesse.id, pas via l'URL id)
       const nouveauStatut = montantRecu === 0 ? 'REPORTEE'
                           : montantRecu >= detteRestante ? 'HONOREE_COMPLETE'
                           : 'HONOREE_PARTIELLE';
@@ -110,11 +134,11 @@ export function RecouvrementForm({ id }: { id: string }) {
       const { error: updateError } = await supabase
         .from('promesses_recouvrement')
         .update(updateData)
-        .eq('id', id);
+        .eq('id', promesse.id);
 
       if (updateError) throw updateError;
 
-      // 3. Si reste de la dette → nouvelle promesse
+      // 3. Si reste de la dette -> nouvelle promesse
       if (resteAPresPaiement > 0 && dateProchaineVisite) {
         await supabase.from('promesses_recouvrement').insert([{
           encaissement_id: promesse.encaissement_id,
@@ -128,7 +152,7 @@ export function RecouvrementForm({ id }: { id: string }) {
         }]);
       }
 
-      toast.success("Recouvrement enregistré !");
+      toast.success("Recouvrement enregistre !");
       router.push('/tournee');
     } catch (error) {
       const message = error instanceof Error ? error.message : "Erreur";
@@ -159,7 +183,7 @@ export function RecouvrementForm({ id }: { id: string }) {
                 </div>
             </div>
             <div className="pt-4 border-t border-white/10">
-                <p className="text-orange-100 text-[10px] font-bold uppercase">Dette à recouvrer</p>
+                <p className="text-orange-100 text-[10px] font-bold uppercase">Dette a recouvrer</p>
                 <p className="text-3xl font-black">{detteRestante.toLocaleString()} Ar</p>
             </div>
          </CardContent>
@@ -168,7 +192,7 @@ export function RecouvrementForm({ id }: { id: string }) {
       <div className="space-y-4 pb-10">
         <div className="space-y-2">
             <label className="text-xs font-black text-gray-400 uppercase flex items-center gap-1.5">
-                <Wallet className="h-3 w-3" /> Montant reçu
+                <Wallet className="h-3 w-3" /> Montant recu
             </label>
             <Input
                 type="number"
@@ -187,7 +211,7 @@ export function RecouvrementForm({ id }: { id: string }) {
                     <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem value="ESPECES">Espèces</SelectItem>
+                    <SelectItem value="ESPECES">Especes</SelectItem>
                     <SelectItem value="MVOLA">Mvola</SelectItem>
                     <SelectItem value="ORANGE_MONEY">Orange</SelectItem>
                     <SelectItem value="AIRTEL_MONEY">Airtel</SelectItem>
