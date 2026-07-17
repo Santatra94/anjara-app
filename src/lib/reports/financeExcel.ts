@@ -29,143 +29,84 @@ function getCategorieLabel(cat: string): string {
   return labels[cat] || cat
 }
 
-function makeCell(value: string | number) {
-  return { v: value, t: typeof value === 'number' ? 'n' : 's' }
-}
-
-function boldCell(value: string | number) {
-  return { v: value, t: typeof value === 'number' ? 'n' : 's', s: { font: { bold: true } } }
-}
-
-function headerCell(value: string) {
-  return {
-    v: value,
-    t: 's',
-    s: {
-      font: { bold: true, color: { rgb: 'FFFFFF' } },
-      fill: { fgColor: { rgb: '2563EB' } },
-      alignment: { horizontal: 'center' },
-    },
-  }
-}
-
-function subHeaderCell(value: string, colorHex: string) {
-  return {
-    v: value,
-    t: 's',
-    s: {
-      font: { bold: true, color: { rgb: 'FFFFFF' } },
-      fill: { fgColor: { rgb: colorHex } },
-      alignment: { horizontal: 'left' },
-    },
-  }
-}
-
-function rightCell(value: string) {
-  return {
-    v: value,
-    t: 's',
-    s: { alignment: { horizontal: 'right' } },
-  }
-}
 function buildResumeSheet(data: FinanceReportData): XLSX.WorkSheet {
-  const rows: unknown[][] = []
+  const rows: (string | number)[][] = []
 
-  rows.push([boldCell('ANJARA -- Rapport Financier')])
-  rows.push([makeCell(data.societe_nom)])
-  rows.push([makeCell(
-    'Periode : ' + fmtDate(data.periode_debut) + ' au ' + fmtDate(data.periode_fin)
-  )])
-  rows.push([makeCell(
-    'Genere le ' + format(new Date(), 'd MMM yyyy a HH:mm', { locale: fr })
-  )])
+  rows.push(['ANJARA -- Rapport Financier'])
+  rows.push([data.societe_nom])
+  rows.push(['Periode : ' + fmtDate(data.periode_debut) + ' au ' + fmtDate(data.periode_fin)])
+  rows.push(['Genere le ' + format(new Date(), 'd MMM yyyy a HH:mm', { locale: fr })])
   rows.push([])
 
-  rows.push([subHeaderCell('INDICATEURS CLES', '2563EB'), makeCell(''), makeCell('')])
-  rows.push([headerCell('Indicateur'), headerCell('Valeur'), headerCell('')])
-  rows.push([makeCell('Solde global'), rightCell(fmtAr(data.solde_global)), makeCell('')])
-  rows.push([makeCell('Benefice net periode'), rightCell(fmtAr(data.benefice_net)), makeCell('')])
-  rows.push([makeCell('CA de la periode'), rightCell(fmtAr(data.ca_periode)), makeCell('')])
-  rows.push([makeCell('Marge brute'), rightCell(fmtAr(data.marge_brute)), makeCell('')])
-  rows.push([makeCell('Depenses periode'), rightCell(fmtAr(data.total_depenses_periode)), makeCell('')])
+  rows.push(['INDICATEURS CLES', '', ''])
+  rows.push(['Indicateur', 'Valeur', ''])
+  rows.push(['Solde global', fmtAr(data.solde_global), ''])
+  rows.push(['Benefice net periode', fmtAr(data.benefice_net), ''])
+  rows.push(['CA de la periode', fmtAr(data.ca_periode), ''])
+  rows.push(['Marge brute', fmtAr(data.marge_brute), ''])
+  rows.push(['Depenses periode', fmtAr(data.total_depenses_periode), ''])
   rows.push([])
 
-  rows.push([subHeaderCell('DETAIL DU SOLDE GLOBAL', '3B82F6'), makeCell(''), makeCell('')])
-  rows.push([headerCell('Type de flux'), headerCell('Montant'), headerCell('')])
-  rows.push([makeCell('Encaissements totaux'), rightCell(fmtAr(data.total_encaissements)), makeCell('')])
-  rows.push([makeCell('Recouvrements totaux'), rightCell(fmtAr(data.total_recouvrements)), makeCell('')])
-  rows.push([makeCell('Injections caisse'), rightCell(fmtAr(data.total_injections)), makeCell('')])
-  rows.push([makeCell('Retraits caisse'), rightCell('-' + fmtAr(data.total_retraits)), makeCell('')])
-  rows.push([makeCell('Depenses totales'), rightCell('-' + fmtAr(data.total_depenses_global)), makeCell('')])
-  rows.push([boldCell('SOLDE FINAL'), boldCell(fmtAr(data.solde_global)), makeCell('')])
+  rows.push(['DETAIL DU SOLDE GLOBAL', '', ''])
+  rows.push(['Type de flux', 'Montant', ''])
+  rows.push(['Encaissements totaux', fmtAr(data.total_encaissements), ''])
+  rows.push(['Recouvrements totaux', fmtAr(data.total_recouvrements), ''])
+  rows.push(['Injections caisse', fmtAr(data.total_injections), ''])
+  rows.push(['Retraits caisse', '-' + fmtAr(data.total_retraits), ''])
+  rows.push(['Depenses totales', '-' + fmtAr(data.total_depenses_global), ''])
+  rows.push(['SOLDE FINAL', fmtAr(data.solde_global), ''])
   rows.push([])
 
   const categoriesEntries = Object.entries(data.depenses_par_categorie)
     .sort((a, b) => b[1] - a[1])
 
   if (categoriesEntries.length > 0) {
-    rows.push([subHeaderCell('REPARTITION DEPENSES PAR CATEGORIE', 'EF4444'), makeCell(''), makeCell('')])
-    rows.push([headerCell('Categorie'), headerCell('Montant'), headerCell('%')])
+    rows.push(['REPARTITION DEPENSES PAR CATEGORIE', '', ''])
+    rows.push(['Categorie', 'Montant', '%'])
     categoriesEntries.forEach(([cat, montant]) => {
       const pct = data.total_depenses_periode > 0
         ? Math.round((montant / data.total_depenses_periode) * 100)
         : 0
-      rows.push([
-        makeCell(getCategorieLabel(cat)),
-        rightCell(fmtAr(montant)),
-        rightCell(pct + ' %'),
-      ])
+      rows.push([getCategorieLabel(cat), fmtAr(montant), pct + ' %'])
     })
-    rows.push([
-      boldCell('TOTAL'),
-      boldCell(fmtAr(data.total_depenses_periode)),
-      boldCell('100 %'),
-    ])
+    rows.push(['TOTAL', fmtAr(data.total_depenses_periode), '100 %'])
   }
 
-  const ws = XLSX.utils.aoa_to_sheet(rows as unknown[][])
+  const ws = XLSX.utils.aoa_to_sheet(rows)
   ws['!cols'] = [{ wch: 32 }, { wch: 22 }, { wch: 10 }]
   return ws
 }
-
 function buildProduitsSheet(data: FinanceReportData): XLSX.WorkSheet {
-  const rows: unknown[][] = []
+  const rows: (string | number)[][] = []
 
-  rows.push([boldCell('Benefice par produit -- ' + data.societe_nom)])
-  rows.push([makeCell(fmtDate(data.periode_debut) + ' au ' + fmtDate(data.periode_fin))])
+  rows.push(['Benefice par produit -- ' + data.societe_nom])
+  rows.push([fmtDate(data.periode_debut) + ' au ' + fmtDate(data.periode_fin)])
   rows.push([])
 
-  rows.push([
-    headerCell('Produit'),
-    headerCell('Categorie'),
-    headerCell('Qte vendue'),
-    headerCell('CA'),
-    headerCell('Cout matieres'),
-    headerCell('Benefice'),
-  ])
+  rows.push(['Produit', 'Categorie', 'Qte vendue', 'CA', 'Cout matieres', 'Benefice'])
 
   data.benefice_produits.forEach(p => {
     rows.push([
-      makeCell(p.nom),
-      makeCell(p.categorie),
-      rightCell(String(p.quantite)),
-      rightCell(fmtAr(p.ca)),
-      rightCell(fmtAr(p.cout)),
-      boldCell(fmtAr(p.benefice)),
+      p.nom,
+      p.categorie,
+      p.quantite,
+      fmtAr(p.ca),
+      fmtAr(p.cout),
+      fmtAr(p.benefice),
     ])
   })
 
   rows.push([])
   rows.push([
-    boldCell('TOTAL'),
-    makeCell(''),
-    makeCell(''),
-    boldCell(fmtAr(data.ca_periode)),
-    boldCell(fmtAr(data.depenses_matieres)),
-    boldCell(fmtAr(data.marge_brute)),
+    'TOTAL',
+    '',
+    '',
+    fmtAr(data.ca_periode),
+    fmtAr(data.depenses_matieres),
+    fmtAr(data.marge_brute),
   ])
 
-  const ws = XLSX.utils.aoa_to_sheet(rows as unknown[][])
+  const ws = XLSX.utils.aoa_to_sheet(rows)
   ws['!cols'] = [
     { wch: 28 },
     { wch: 20 },
@@ -176,46 +117,30 @@ function buildProduitsSheet(data: FinanceReportData): XLSX.WorkSheet {
   ]
   return ws
 }
-function buildMouvementsSheet(data: FinanceReportData): XLSX.WorkSheet {
-  const rows: unknown[][] = []
 
-  rows.push([boldCell('Mouvements de caisse -- ' + data.societe_nom)])
-  rows.push([makeCell(fmtDate(data.periode_debut) + ' au ' + fmtDate(data.periode_fin))])
+function buildMouvementsSheet(data: FinanceReportData): XLSX.WorkSheet {
+  const rows: (string | number)[][] = []
+
+  rows.push(['Mouvements de caisse -- ' + data.societe_nom])
+  rows.push([fmtDate(data.periode_debut) + ' au ' + fmtDate(data.periode_fin)])
   rows.push([])
 
-  rows.push([
-    headerCell('Date'),
-    headerCell('Type'),
-    headerCell('Libelle'),
-    headerCell('Montant'),
-  ])
+  rows.push(['Date', 'Type', 'Libelle', 'Montant'])
 
   data.mouvements_recents.forEach(m => {
     rows.push([
-      makeCell(fmtDate(m.date_mouvement)),
-      makeCell(m.type_mouvement === 'INJECTION' ? 'Injection' : 'Retrait'),
-      makeCell(m.libelle),
-      rightCell(
-        (m.type_mouvement === 'INJECTION' ? '+' : '-') + fmtAr(m.montant)
-      ),
+      fmtDate(m.date_mouvement),
+      m.type_mouvement === 'INJECTION' ? 'Injection' : 'Retrait',
+      m.libelle,
+      (m.type_mouvement === 'INJECTION' ? '+' : '-') + fmtAr(m.montant),
     ])
   })
 
   rows.push([])
-  rows.push([
-    boldCell('Total injections'),
-    makeCell(''),
-    makeCell(''),
-    boldCell('+' + fmtAr(data.total_injections)),
-  ])
-  rows.push([
-    boldCell('Total retraits'),
-    makeCell(''),
-    makeCell(''),
-    boldCell('-' + fmtAr(data.total_retraits)),
-  ])
+  rows.push(['Total injections', '', '', '+' + fmtAr(data.total_injections)])
+  rows.push(['Total retraits', '', '', '-' + fmtAr(data.total_retraits)])
 
-  const ws = XLSX.utils.aoa_to_sheet(rows as unknown[][])
+  const ws = XLSX.utils.aoa_to_sheet(rows)
   ws['!cols'] = [
     { wch: 16 },
     { wch: 12 },
