@@ -83,8 +83,8 @@ const fetcher = async (url: string) => {
 }
 
 export function useRecettes() {
-  const { profile } = useAuth()
-  const societeId = profile?.societe_id || null
+  const { user } = useAuth()
+  const societeId = user?.utilisateur?.societe_id || null
 
   const { data, error, isLoading, mutate } = useSWR<ListResponse>(
     societeId ? ['recettes', societeId] : null,
@@ -125,4 +125,4 @@ export function useRecetteDetail(recetteId: string | null) {
     error,
     refresh: mutate,
   }
-    }
+}
