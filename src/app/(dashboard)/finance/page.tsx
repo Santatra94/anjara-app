@@ -10,6 +10,7 @@ import {
 import {
   Plus, TrendingUp, TrendingDown, Wallet,
   ArrowDownCircle, ArrowUpCircle, Trash2,
+  FileText, FileSpreadsheet,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -31,12 +32,13 @@ import {
 import { getDepenseCategorieLabel, getDepenseCategorieBadgeClass } from '@/hooks/useDepenses'
 import type { DepenseCategorie } from '@/hooks/useDepenses'
 import { toast } from 'sonner'
-
+import { generateFinancePdf } from '@/lib/reports/financePdf'
+import { generateFinanceExcel } from '@/lib/reports/financeExcel'
 type PeriodeType = 'aujourd_hui' | 'ce_mois' | 'mois_precedent' | 'personnalise'
 type MouvementCaisse = { id: string; type_mouvement: 'INJECTION' | 'RETRAIT'; montant: number; libelle: string; date_mouvement: string; notes: string | null }
 type BeneficeProduit = { nom: string; categorie: string; ca: number; cout: number; benefice: number; quantite: number }
 type GraphiqueMois = { mois: string; ca: number; depenses: number; benefice: number }
-type FinanceData = { solde_global: number; total_encaissements: number; total_recouvrements: number; total_injections: number; total_retraits: number; total_depenses_global: number; ca_periode: number; total_depenses_periode: number; depenses_matieres: number; depenses_hors_matieres: number; marge_brute: number; benefice_net: number; depenses_par_categorie: Record<string, number>; benefice_produits: BeneficeProduit[]; graphique_mois: GraphiqueMois[]; mouvements_recents: MouvementCaisse[]; periode: { debut: string; fin: string; type: string }; role?: string }
+type FinanceData = { solde_global: number; total_encaissements: number; total_recouvrements: number; total_injections: number; total_retraits: number; total_depenses_global: number; ca_periode: number; total_depenses_periode: number; depenses_matieres: number; depenses_hors_matieres: number; marge_brute: number; benefice_net: number; depenses_par_categorie: Record<string, number>; benefice_produits: BeneficeProduit[]; graphique_mois: GraphiqueMois[]; mouvements_recents: MouvementCaisse[]; periode: { debut: string; fin: string; type: string }; societe_nom?: string; role?: string }
 type MouvementForm = { type_mouvement: 'INJECTION' | 'RETRAIT'; montant: string; libelle: string; date_mouvement: string; notes: string }
 
 function fmtAr(n: number): string { return new Intl.NumberFormat('fr-FR').format(Math.round(n)) + ' Ar' }
@@ -46,6 +48,7 @@ function soldePrefix(val: number): string { return val >= 0 ? '+' : '' }
 function catBadge(cat: string): string { return getDepenseCategorieBadgeClass(cat as DepenseCategorie) }
 function catLabel(cat: string): string { return getDepenseCategorieLabel(cat as DepenseCategorie) }
 const FORM_DEFAULT: MouvementForm = { type_mouvement: 'INJECTION', montant: '', libelle: '', date_mouvement: new Date().toISOString().split('T')[0], notes: '' }
+
 export default function FinancePage() {
   const today = new Date()
   const [data, setData] = useState<FinanceData | null>(null)
@@ -59,7 +62,7 @@ export default function FinancePage() {
   const [mvtASupprimer, setMvtASupprimer] = useState<MouvementCaisse | null>(null)
   const [form, setForm] = useState<MouvementForm>(FORM_DEFAULT)
   const [role, setRole] = useState<string>('ADMIN')
-
+  const [exportLoading, setExportLoading] = useState(false)
   const charger = useCallback(async () => {
     setLoading(true)
     setErreur(null)
@@ -113,12 +116,71 @@ export default function FinancePage() {
     return isToday(dateMvt)
   }
 
+  function handleExportPdf() {
+    if (!data) return
+    setExportLoading(true)
+    try {
+      generateFinancePdf({
+        societe_nom: data.societe_nom || 'Anjara',
+        periode_debut: dateDebut,
+        periode_fin: dateFin,
+        periode_type: periode,
+        solde_global: data.solde_global,
+        total_encaissements: data.total_encaissements,
+        total_recouvrements: data.total_recouvrements,
+        total_injections: data.total_injections,
+        total_retraits: data.total_retraits,
+        total_depenses_global: data.total_depenses_global,
+        ca_periode: data.ca_periode,
+        total_depenses_periode: data.total_depenses_periode,
+        depenses_matieres: data.depenses_matieres,
+        depenses_hors_matieres: data.depenses_hors_matieres,
+        marge_brute: data.marge_brute,
+        benefice_net: data.benefice_net,
+        depenses_par_categorie: data.depenses_par_categorie,
+        benefice_produits: data.benefice_produits,
+        mouvements_recents: data.mouvements_recents,
+      })
+      toast.success('PDF telecharge !')
+    } catch { toast.error('Erreur generation PDF') }
+    finally { setExportLoading(false) }
+  }
+
+  function handleExportExcel() {
+    if (!data) return
+    setExportLoading(true)
+    try {
+      generateFinanceExcel({
+        societe_nom: data.societe_nom || 'Anjara',
+        periode_debut: dateDebut,
+        periode_fin: dateFin,
+        periode_type: periode,
+        solde_global: data.solde_global,
+        total_encaissements: data.total_encaissements,
+        total_recouvrements: data.total_recouvrements,
+        total_injections: data.total_injections,
+        total_retraits: data.total_retraits,
+        total_depenses_global: data.total_depenses_global,
+        ca_periode: data.ca_periode,
+        total_depenses_periode: data.total_depenses_periode,
+        depenses_matieres: data.depenses_matieres,
+        depenses_hors_matieres: data.depenses_hors_matieres,
+        marge_brute: data.marge_brute,
+        benefice_net: data.benefice_net,
+        depenses_par_categorie: data.depenses_par_categorie,
+        benefice_produits: data.benefice_produits,
+        mouvements_recents: data.mouvements_recents,
+      })
+      toast.success('Excel telecharge !')
+    } catch { toast.error('Erreur generation Excel') }
+    finally { setExportLoading(false) }
+  }
+
   const dateJour = format(today, 'EEEE d MMMM yyyy', { locale: fr })
 
   if (loading) return (<div className="flex items-center justify-center min-h-96"><p className="text-sm text-gray-500">Chargement...</p></div>)
   if (erreur || !data) return (<div className="flex items-center justify-center min-h-96"><p className="text-sm text-red-500">{erreur || 'Erreur'}</p></div>)
   const categoriesEntries = Object.entries(data.depenses_par_categorie).sort((a, b) => b[1] - a[1])
-
   return (
     <div className="space-y-6 p-4 md:p-6 max-w-7xl mx-auto">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -126,7 +188,32 @@ export default function FinancePage() {
           <h1 className="text-xl md:text-2xl font-bold text-gray-900">Finance</h1>
           <p className="text-sm text-gray-500 mt-0.5">{dateJour}</p>
         </div>
-        <Button onClick={() => setModalMvt(true)} className="w-full md:w-auto"><Plus className="h-4 w-4 mr-2" />Injection / Retrait</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportPdf}
+            disabled={exportLoading || !data}
+            className="text-red-600 border-red-200 hover:bg-red-50"
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            PDF
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportExcel}
+            disabled={exportLoading || !data}
+            className="text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+          >
+            <FileSpreadsheet className="h-4 w-4 mr-2" />
+            Excel
+          </Button>
+          <Button onClick={() => setModalMvt(true)} className="w-full md:w-auto">
+            <Plus className="h-4 w-4 mr-2" />
+            Injection / Retrait
+          </Button>
+        </div>
       </div>
       <div className="bg-white rounded-xl border border-gray-200 p-4">
         <p className="text-xs text-gray-500 font-medium mb-3 uppercase">Periode</p>
@@ -210,8 +297,8 @@ export default function FinancePage() {
       </Dialog>
       <AlertDialog open={!!mvtASupprimer} onOpenChange={(open) => { if (!open) setMvtASupprimer(null) }}>
         <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Supprimer ce mouvement ?</AlertDialogTitle><AlertDialogDescription>{mvtASupprimer ? mvtASupprimer.libelle + ' -- ' + fmtAr(mvtASupprimer.montant) : ''}</AlertDialogDescription></AlertDialogHeader>
-          <AlertDialogFooter><AlertDialogCancel>Annuler</AlertDialogCancel><AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={handleSupprimer}>Supprimer</AlertDialogAction></AlertDialogFooter>
+          <AlertDialogHeader><AlertDialogTitle>Supprimer ce mouvement ?</AlertDialogTitle><AlertDialogDescription>Cette action est irreversible.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Annuler</AlertDialogCancel><AlertDialogAction onClick={handleSupprimer} className="bg-red-600 hover:bg-red-700">Supprimer</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>
