@@ -117,7 +117,7 @@ const PROD_FORM_DEFAULT: ProductionForm = {
 }
 export default function StockPage() {
   const { user } = useAuth()
-  const { stock, nbAlertes, mouvements, productionsRecentes, isLoading: loadingStock, refresh: refreshStock } = useStock()
+    const { stock, mouvements, isLoading: loadingStock, refresh: refreshStock } = useStock()
   const { productions, refresh: refreshProductions } = useProductions()
   const { recettes } = useRecettes()
 
