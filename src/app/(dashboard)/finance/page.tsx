@@ -146,7 +146,7 @@ export default function FinancePage() {
     finally { setExportLoading(false) }
   }
 
-  function handleExportExcel() {
+    function handleExportExcel() {
     if (!data) return
     setExportLoading(true)
     try {
