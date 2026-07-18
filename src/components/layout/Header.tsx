@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
+import { NotificationBell } from './NotificationBell';
 
 export function Header() {
   const { user, loading, signOut } = useAuth();
@@ -28,6 +29,9 @@ export function Header() {
                 {user.utilisateur.role} · {user.societe.nom}
               </div>
             </div>
+
+            <NotificationBell />
+
             <button
               onClick={signOut}
               className="text-xs md:text-sm px-2 md:px-3 py-1 md:py-1.5 bg-gray-100 hover:bg-gray-200 rounded-md text-gray-700 transition"
