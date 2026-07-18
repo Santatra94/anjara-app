@@ -64,12 +64,26 @@ function parseParfums(texte: string | null | undefined): string[] {
   return texte.split(',').map(function (s) { return s.trim(); }).filter(function (s) { return s.length > 0; });
 }
 
+function normalize(value: string): string {
+  return value.toLowerCase().trim();
+}
+
 function trouverProduit(nomParfum: string, produits: ProduitLocal[]): ProduitLocal | null {
-  const nomLower = nomParfum.toLowerCase();
-  const trouve = produits.find(function (p) {
-    return p.nom_produit.toLowerCase() === nomLower;
+  const parfumNormalise = normalize(nomParfum);
+
+  // 1️⃣ Match exact apres trim
+  const exactMatch = produits.find(function (p) {
+    return normalize(p.nom_produit) === parfumNormalise;
   });
-  return trouve || null;
+
+  if (exactMatch) return exactMatch;
+
+  // 2️⃣ Fallback intelligent : contient le parfum
+  const partialMatch = produits.find(function (p) {
+    return normalize(p.nom_produit).includes(parfumNormalise);
+  });
+
+  return partialMatch || null;
 }
 
 export function PreparationInterface({ id }: { id: string }) {
