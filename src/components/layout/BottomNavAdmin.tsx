@@ -21,6 +21,7 @@ import {
   Landmark,
   Building2,
   ChefHat,
+  Warehouse,
 } from 'lucide-react';
 
 const navigation = [
@@ -32,6 +33,7 @@ const navigation = [
 
 const menuPlusBase = [
   { name: 'Finance', href: '/finance', icon: Landmark, adminOnly: false },
+  { name: 'Stock', href: '/stock', icon: Warehouse, adminOnly: false },
   { name: 'Depenses', href: '/depenses', icon: TrendingDown, adminOnly: false },
   { name: 'Recettes', href: '/recettes', icon: ChefHat, adminOnly: false },
   { name: 'Gerants', href: '/gerants', icon: Building2, adminOnly: true },
