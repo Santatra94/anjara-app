@@ -4,7 +4,6 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { useAuth } from '@/hooks/useAuth';
 import { 
   Bell, 
-  Check, 
   BellOff, 
   Smartphone, 
   Clock, 
@@ -36,7 +35,7 @@ export function NotificationBell() {
   } = useNotifications();
 
   // Ne montrer qu'au GERANT et ADMIN
-  if (!user || (user.role !== 'GERANT' && user.role !== 'ADMIN')) {
+  if (!user || (user.utilisateur.role !== 'GERANT' && user.utilisateur.role !== 'ADMIN')) {
     return null;
   }
 
@@ -120,7 +119,7 @@ export function NotificationBell() {
           )}
         </ScrollArea>
         <div className="p-2 border-t text-center">
-           <p className="text-[10px] text-gray-400 italic">Anjara Y&J - Real-time alerts</p>
+           <p className="text-[10px] text-gray-400 italic">Anjara Y&amp;J - Real-time alerts</p>
         </div>
       </PopoverContent>
     </Popover>
