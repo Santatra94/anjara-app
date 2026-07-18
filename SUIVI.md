@@ -26,6 +26,44 @@
 
 ## 📅 Journal de travail
 
+### 18/07/2026 (suite 3) — Module Stock complet
+
+**Duree** : ~3h
+
+**Feature complete : Module Stock**
+- SQL : mouvements_stock, productions, production_matieres
+- Fonctions : fn_stock_actuel, fn_stock_summary
+- Triggers auto :
+  - fn_production_to_stock (ENTREE_PRODUCTION produit fini)
+  - fn_production_matiere_to_stock (SORTIE_PRODUCTION matieres)
+  - fn_commande_livree_to_stock (SORTIE_VENTE)
+  - fn_depense_to_stock (ENTREE_ACHAT depuis depenses matieres)
+- API /api/stock (GET/POST/PATCH inventaire/DELETE)
+- API /api/productions (GET/POST/DELETE)
+- Hooks SWR : useStock, useProductions, useProductionDetail
+- Page /stock avec 3 onglets (Stock/Mouvements/Productions)
+- Modales : Mouvement, Production, Inventaire initial
+- Auto-remplissage matieres via recette dans production
+- Retro-generation ENTREE_ACHAT pour depenses matieres passees
+
+**Fichiers crees**
+- src/hooks/useStock.ts
+- src/hooks/useProductions.ts
+- src/app/api/stock/route.ts
+- src/app/api/productions/route.ts
+- src/app/(dashboard)/stock/page.tsx
+
+**Fichiers modifies**
+- src/components/layout/Sidebar.tsx (+ Stock icone Warehouse)
+- src/components/layout/BottomNavAdmin.tsx (+ Stock)
+
+**Innovations metier**
+- Depense matiere = automatiquement mise a jour stock
+- Production auto-charge la recette pour pre-remplir matieres
+- Livraison decremente auto le stock produit fini
+- Inventaire initial : formulaire pour saisir stock actuel
+  (cree ajustements en batch)
+
 ### 18/07/2026 — Fix bug recouvrement (Promesse non trouvee)
 
 **Duree** : ~15 min
