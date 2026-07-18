@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { commandeCreateSchema, CommandeCreateValues } from "@/lib/schemas/commande.schema";
@@ -39,7 +39,6 @@ export function CommandeForm() {
   const { clients } = useClients();
   const { produits } = useProduits();
   const { createCommande } = useCommandes();
-  const supabase = createClient();
 
   const [assignedLivreur, setAssignedLivreur] = useState<{ id: string, nom: string, zone: string } | null>(null);
   const [loadingLivreur, setLoadingLivreur] = useState(false);
@@ -59,56 +58,66 @@ export function CommandeForm() {
 
   const selectedClientId = form.watch("client_id");
 
-  // Fetch livreur when client changes
-  useMemo(() => {
-    async function fetchLivreur() {
-        if (!selectedClientId) {
-          setAssignedLivreur(null);
-          return;
-        }
+  // Fetch livreur when client changes (useEffect + cleanup pour eviter les race conditions)
+  useEffect(() => {
+    if (!selectedClientId) {
+      setAssignedLivreur(null);
+      return;
+    }
 
-        setLoadingLivreur(true);
-        const client = clients.find(c => c.id === selectedClientId);
-        if (client?.zone_id) {
-          const { data } = await supabase
-            .from('utilisateurs')
-            .select('id, nom, zone:zones(nom)')
-            .eq('zone_id', client.zone_id)
-            .eq('role', 'LIVREUR')
-            .eq('actif', true)
-            .eq('is_archived', false)
-            .order('created_at', { ascending: true })
-            .limit(1)
-            .maybeSingle();
+    const client = clients.find(c => c.id === selectedClientId);
+    if (!client?.zone_id) {
+      setAssignedLivreur(null);
+      return;
+    }
 
-          if (data) {
-            const zoneName = (data.zone as unknown as { nom: string } | null)?.nom || "Inconnue";
-            setAssignedLivreur({
-              id: data.id,
-              nom: data.nom,
-              zone: zoneName
-            });
-          } else {
-            setAssignedLivreur(null);
-          }
+    let cancelled = false;
+    setLoadingLivreur(true);
+
+    const supabase = createClient();
+
+    supabase
+      .from('utilisateurs')
+      .select('id, nom, zone:zones(nom)')
+      .eq('zone_id', client.zone_id)
+      .eq('role', 'LIVREUR')
+      .eq('actif', true)
+      .eq('is_archived', false)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+
+        if (data) {
+          const zoneName = (data.zone as unknown as { nom: string } | null)?.nom || "Inconnue";
+          setAssignedLivreur({
+            id: data.id,
+            nom: data.nom,
+            zone: zoneName
+          });
         } else {
           setAssignedLivreur(null);
         }
         setLoadingLivreur(false);
-    }
-    fetchLivreur();
-  }, [selectedClientId, clients, supabase]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedClientId]);
 
   const onSubmit = async (values: CommandeCreateValues) => {
     try {
       const result = await createCommande(values);
-      toast.success("Commande créée avec succès");
+      toast.success("Commande creee avec succes");
       if (result) {
-          router.push(`/commandes/${result.id}`);
+        router.push(`/commandes/${result.id}`);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Une erreur est survenue";
-      toast.error("Erreur lors de la création", { description: message });
+      toast.error("Erreur lors de la creation", { description: message });
     }
   };
 
@@ -155,7 +164,7 @@ export function CommandeForm() {
                 name="date_livraison"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
-                    <FormLabel>Date de livraison prévue</FormLabel>
+                    <FormLabel>Date de livraison prevue</FormLabel>
                     <DatePicker
                       date={field.value ? new Date(field.value) : undefined}
                       setDate={(date) => field.onChange(date ? format(date, 'yyyy-MM-dd') : "")}
@@ -170,7 +179,7 @@ export function CommandeForm() {
                 <div className="flex items-start gap-2">
                   <Truck className="h-4 w-4 text-blue-600 mt-0.5" />
                   <div>
-                    <p className="text-xs font-semibold text-blue-900">Livreur assigné</p>
+                    <p className="text-xs font-semibold text-blue-900">Livreur assigne</p>
                     {loadingLivreur ? (
                       <p className="text-xs text-blue-700 italic">Recherche du livreur...</p>
                     ) : assignedLivreur ? (
@@ -182,7 +191,7 @@ export function CommandeForm() {
                         <Info className="h-3 w-3" /> Aucun livreur actif sur cette zone
                       </p>
                     ) : (
-                      <p className="text-xs text-blue-600 italic">Sélectionnez un client pour voir le livreur</p>
+                      <p className="text-xs text-blue-600 italic">Selectionnez un client pour voir le livreur</p>
                     )}
                   </div>
                 </div>
@@ -194,7 +203,7 @@ export function CommandeForm() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
-                <Info className="h-5 w-5 text-gray-500" /> Notes complémentaires
+                <Info className="h-5 w-5 text-gray-500" /> Notes complementaires
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -231,7 +240,7 @@ export function CommandeForm() {
                   name="total_yaourt_commande"
                   render={({ field }) => (
                     <FormItem className="flex items-center gap-3 space-y-0">
-                      <FormLabel className="font-bold whitespace-nowrap">Total demandé :</FormLabel>
+                      <FormLabel className="font-bold whitespace-nowrap">Total demande :</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -251,7 +260,7 @@ export function CommandeForm() {
                 name="parfums_yaourt_souhaites"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Parfums souhaités (indicatif)</FormLabel>
+                    <FormLabel className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Parfums souhaites (indicatif)</FormLabel>
                     <FormControl>
                       <ParfumsCheckboxes
                         produits={produitsYaourt}
@@ -277,7 +286,7 @@ export function CommandeForm() {
                   name="total_jus_commande"
                   render={({ field }) => (
                     <FormItem className="flex items-center gap-3 space-y-0">
-                      <FormLabel className="font-bold whitespace-nowrap">Total demandé :</FormLabel>
+                      <FormLabel className="font-bold whitespace-nowrap">Total demande :</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -297,7 +306,7 @@ export function CommandeForm() {
                 name="parfums_jus_souhaites"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Parfums souhaités (indicatif)</FormLabel>
+                    <FormLabel className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">Parfums souhaites (indicatif)</FormLabel>
                     <FormControl>
                       <ParfumsCheckboxes
                         produits={produitsJus}
@@ -319,7 +328,7 @@ export function CommandeForm() {
             Annuler
           </Button>
           <Button type="submit" size="lg" className="px-8" disabled={form.formState.isSubmitting}>
-            {form.formState.isSubmitting ? "Création..." : "Enregistrer la commande"}
+            {form.formState.isSubmitting ? "Creation..." : "Enregistrer la commande"}
           </Button>
         </div>
       </form>
