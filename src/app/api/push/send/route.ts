@@ -1,3 +1,4 @@
+import { createClient as createServerSupabase } from '@/lib/supabase/server';
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import webpush from 'web-push';
@@ -21,24 +22,29 @@ interface PushPayload {
     commande_id?: string;
     [key: string]: unknown;
   };
-  target_roles?: string[]; // ex: ['GERANT', 'ADMIN']
+  target_roles?: string[];
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
-    const apiSecret = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    // 1. Verifier authentification via cookie Supabase
+    const supabaseAuth = await createServerSupabase();
+    const { data: { user: authUser } } = await supabaseAuth.auth.getUser();
 
-    // Verifier l'authorization (soit token utilisateur, soit service role)
-    if (!authHeader || !apiSecret) {
-      return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
+    if (!authUser) {
+      return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
     }
 
-    // Client admin (pour bypass RLS)
-    const supabaseAdmin = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      apiSecret
-    );
+    // 2. Recuperer le profil pour verifier societe_id + role
+    const { data: profil, error: profilError } = await supabaseAuth
+      .from('utilisateurs')
+      .select('id, societe_id, role')
+      .eq('id', authUser.id)
+      .single();
+
+    if (profilError || !profil) {
+      return NextResponse.json({ error: 'Profil introuvable' }, { status: 403 });
+    }
 
     const body: PushPayload = await request.json();
     const { societe_id, title, body: message, url, tag, donnees, target_roles } = body;
@@ -47,10 +53,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Parametres manquants' }, { status: 400 });
     }
 
-    // Roles cibles (par defaut: GERANT + ADMIN)
+    // 3. Isolation multi-tenant : verifier que l'utilisateur envoie vers SA societe
+    if (profil.societe_id !== societe_id) {
+      return NextResponse.json({ error: 'Societe non autorisee' }, { status: 403 });
+    }
+
+    // 4. Client admin pour bypass RLS (envoi vers tous les GERANTS/ADMINS)
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
     const roles = target_roles && target_roles.length > 0 ? target_roles : ['GERANT', 'ADMIN'];
 
-    // Recuperer tous les utilisateurs cibles de la societe
+    // Recuperer utilisateurs cibles
     const { data: utilisateurs, error: usersError } = await supabaseAdmin
       .from('utilisateurs')
       .select('id')
@@ -70,7 +86,7 @@ export async function POST(request: NextRequest) {
 
     const userIds = utilisateurs.map(u => u.id);
 
-    // Recuperer toutes les subscriptions de ces utilisateurs
+    // Recuperer subscriptions
     const { data: subscriptions, error: subsError } = await supabaseAdmin
       .from('push_subscriptions')
       .select('*')
@@ -82,7 +98,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!subscriptions || subscriptions.length === 0) {
-      // Enregistrer quand meme la notification en DB (pour la cloche in-app)
+      // Enregistrer quand meme dans notifications (cloche in-app)
       await supabaseAdmin.from('notifications').insert({
         societe_id,
         type: tag || 'GENERAL',
@@ -93,7 +109,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, sent: 0, message: 'Aucun appareil abonne' });
     }
 
-    // Payload envoye au Service Worker
     const pushPayload = JSON.stringify({
       title,
       body: message,
@@ -102,7 +117,7 @@ export async function POST(request: NextRequest) {
       donnees: donnees || {},
     });
 
-    // Envoyer a tous les appareils en parallele
+    // Envoyer en parallele
     const results = await Promise.allSettled(
       subscriptions.map(sub =>
         webpush.sendNotification(
@@ -118,7 +133,7 @@ export async function POST(request: NextRequest) {
       )
     );
 
-    // Nettoyer les subscriptions invalides (410 Gone = appareil desabonne)
+    // Nettoyer subscriptions invalides
     const invalidEndpoints: string[] = [];
     results.forEach((result, index) => {
       if (result.status === 'rejected') {
@@ -140,7 +155,7 @@ export async function POST(request: NextRequest) {
 
     const successCount = results.filter(r => r.status === 'fulfilled').length;
 
-    // Enregistrer la notification dans la table (pour la cloche in-app)
+    // Enregistrer dans notifications (cloche in-app)
     await supabaseAdmin.from('notifications').insert({
       societe_id,
       type: tag || 'GENERAL',
