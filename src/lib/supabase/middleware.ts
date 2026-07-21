@@ -38,11 +38,15 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
+  // getSession() lit le JWT depuis le cookie LOCAL
+  // Zero appel reseau vers Supabase (contrairement a getUser())
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
 
-  // Routes publiques (accessibles sans connexion complete)
+  const user = session?.user ?? null;
+
+  // Routes publiques (accessibles sans connexion)
   const publicRoutes = ['/login', '/auth/callback', '/definir-mot-de-passe'];
   const isPublicRoute = publicRoutes.some(route =>
     request.nextUrl.pathname.startsWith(route)
@@ -54,12 +58,7 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Ne PAS rediriger si l'utilisateur est sur /definir-mot-de-passe
-  // meme s'il a une session (invitation ou reset password)
-  if (
-    user &&
-    request.nextUrl.pathname === '/login'
-  ) {
+  if (user && request.nextUrl.pathname === '/login') {
     const url = request.nextUrl.clone();
     url.pathname = '/';
     return NextResponse.redirect(url);
