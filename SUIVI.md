@@ -26,6 +26,44 @@
 
 ## 📅 Journal de travail
 
+### 19/07/2026 — Bugs + Notifications Push (session en cours)
+
+**Duree** : ~3h
+
+**Bugs corriges**
+- Crash React #301 sur /commandes/nouvelle (useMemo -> useEffect)
+- Preparation LIVREUR : suggestions pre-selectionnent tous les parfums
+  (trim + normalize + fallback partiel dans trouverProduit)
+
+**Notifications Push (7/8 etapes terminees)**
+- Tables SQL notifications + push_subscriptions
+- Cles VAPID generees + ajoutees Vercel
+- Lib web-push installee
+- Service Worker custom (worker/index.js) via next-pwa
+- API /api/push/subscribe + /api/push/send
+- Hook useNotifications + composant NotificationBell
+- ScrollArea shadcn ajoute (composant + radix package)
+- Integration dans Header
+
+**Fichiers crees**
+- worker/index.js
+- src/hooks/useNotifications.ts
+- src/components/layout/NotificationBell.tsx
+- src/components/ui/scroll-area.tsx
+- src/app/api/push/subscribe/route.ts
+- src/app/api/push/send/route.ts
+
+**Fichiers modifies**
+- src/components/commandes/CommandeForm.tsx (bug useMemo)
+- src/components/commandes/PreparationInterface.tsx (bug parfums)
+- src/components/layout/Header.tsx (+ NotificationBell)
+- package.json (+ web-push + @radix-ui/react-scroll-area)
+- next.config.js (deja next-pwa configure)
+
+**A finir prochaine session**
+- Bug : clic "Activer alertes push" ne fait rien (debug console)
+- ETAPE 8 : trigger push apres validation livraison + SMS auto
+
 ### 18/07/2026 (suite 3) — Module Stock complet
 
 **Duree** : ~3h
