@@ -264,7 +264,7 @@ export function PreparationInterface({ id }: { id: string }) {
       }]);
       if (insertResult.error) throw insertResult.error;
 
-      await updateStatut(id, 'PREPARATION');
+      await updateStatut(id, 'EN_LIVRAISON');
       toast.success("Preparation terminee avec succes");
       router.push('/commandes/' + id);
     } catch (error) {
