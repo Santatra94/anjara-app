@@ -47,6 +47,56 @@ export function LivraisonForm({ id }: { id: string }) {
   const totalAEncaisser = commande.lignes_commande?.reduce((acc: number, curr: { total_ligne: number | null }) => acc + (curr.total_ligne || 0), 0) || 0;
   const resteAPayer = Math.max(0, totalAEncaisser - montantRecu);
 
+  // Envoi push notification (fire-and-forget, ne bloque pas la livraison)
+  const envoyerPushGerant = (statut: 'LIVRE_PAYE' | 'LIVRE_DETTE') => {
+    if (!user?.societe.id || !commande) return;
+
+    const clientNom = commande.client?.nom_pdv || 'Client inconnu';
+    const codeCmd = commande.code_commande || 'CMD-???';
+    const telephone = commande.client?.telephone || '';
+    const zone = commande.client?.zone?.nom || '';
+
+    const statutTexte = statut === 'LIVRE_PAYE' ? 'Payee' : 'Dette';
+    const emoji = statut === 'LIVRE_PAYE' ? 'CHECK' : 'DEBT';
+
+    // Corps SMS pre-rempli pour clic action
+    const smsBody =
+      'Bonjour ' + clientNom + ', ' +
+      'nous vous confirmons la livraison de la commande ' + codeCmd + ' ' +
+      'd\'un montant de ' + totalAEncaisser.toLocaleString() + ' Ar' +
+      (resteAPayer > 0 ? ' (reste a payer : ' + resteAPayer.toLocaleString() + ' Ar).' : '.') +
+      ' Merci pour votre confiance. Anjara Y&J.';
+
+    const title = statut === 'LIVRE_PAYE'
+      ? 'Livraison payee - ' + codeCmd
+      : 'Livraison en dette - ' + codeCmd;
+
+    const bodyMsg =
+      clientNom + ' (' + zone + ') - ' +
+      totalAEncaisser.toLocaleString() + ' Ar - ' + statutTexte;
+
+    fetch('/api/push/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        societe_id: user.societe.id,
+        title: title,
+        body: bodyMsg,
+        tag: 'LIVRAISON_VALIDEE',
+        url: '/commandes/' + id,
+        donnees: {
+          telephone: telephone,
+          smsBody: smsBody,
+          commande_id: id,
+          emoji: emoji,
+        },
+      }),
+    }).catch((err) => {
+      // Silencieux : le push est un bonus, pas une obligation
+      console.warn('[Push] Envoi echoue:', err);
+    });
+  };
+
   const handleValider = async () => {
     if (typeof window !== 'undefined' && !navigator.onLine) {
       toast.error("Impossible de valider hors ligne. Attendez le retour du réseau.");
@@ -70,10 +120,11 @@ export function LivraisonForm({ id }: { id: string }) {
       if (encError) throw encError;
 
       // 2. Update commande
+      const nouveauStatut = resteAPayer === 0 ? 'LIVRE_PAYE' : 'LIVRE_DETTE';
       const { error: cmdError } = await supabase
         .from('commandes')
         .update({
-          statut: resteAPayer === 0 ? 'LIVRE_PAYE' : 'LIVRE_DETTE',
+          statut: nouveauStatut,
           date_livraison_effective: new Date().toISOString(),
           nom_receptionnaire: nomReceptionnaire,
           mode_paiement_livraison: modePaiement,
@@ -99,6 +150,9 @@ export function LivraisonForm({ id }: { id: string }) {
             }]);
         }
       }
+
+      // 4. Envoyer push notif au GERANT (fire-and-forget)
+      envoyerPushGerant(nouveauStatut);
 
       toast.success("Livraison enregistrée !");
       router.push('/tournee');
