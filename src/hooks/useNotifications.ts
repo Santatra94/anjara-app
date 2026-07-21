@@ -6,7 +6,6 @@ import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
-// Helper pour convertir la cle VAPID publique
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -18,44 +17,57 @@ function urlBase64ToUint8Array(base64String: string) {
   return outputArray;
 }
 
-// Helper : obtenir un SW enregistre (register si besoin, avec timeout)
-async function getServiceWorkerRegistration(): Promise<ServiceWorkerRegistration> {
-  // 1. Essayer les enregistrements existants
-  const existing = await navigator.serviceWorker.getRegistration();
-  if (existing) {
-    console.log('[Push] SW deja enregistre:', existing.scope);
+// Enregistrer notre SW dedie push (public/sw-push.js)
+// Scope /push/ = ne conflicte PAS avec /sw.js de next-pwa
+async function registerPushServiceWorker(): Promise<ServiceWorkerRegistration> {
+  // 1. Chercher un enregistrement existant sur notre scope dedie
+  const registrations = await navigator.serviceWorker.getRegistrations();
+  const existing = registrations.find(r => r.active?.scriptURL.includes('sw-push.js'));
+  if (existing && existing.active) {
+    console.log('[Push] SW-Push deja actif');
     return existing;
   }
 
-  // 2. Si aucun, forcer l'enregistrement
-  console.log('[Push] Aucun SW trouve, enregistrement manuel...');
-  const registration = await navigator.serviceWorker.register('/sw.js', {
+  // 2. Enregistrer notre SW push
+  console.log('[Push] Enregistrement sw-push.js...');
+  const registration = await navigator.serviceWorker.register('/sw-push.js', {
     scope: '/',
+    updateViaCache: 'none',
   });
-  console.log('[Push] SW enregistre:', registration.scope);
 
-  // 3. Attendre qu'il soit pret (avec timeout 10s)
+  // 3. Attendre activation (avec timeout 15s)
   await new Promise<void>((resolve, reject) => {
-    const timeout = setTimeout(() => reject(new Error('SW activation timeout')), 10000);
+    const timeout = setTimeout(() => {
+      reject(new Error('Timeout activation SW-Push (15s)'));
+    }, 15000);
+
     if (registration.active) {
       clearTimeout(timeout);
       resolve();
       return;
     }
+
     const sw = registration.installing || registration.waiting;
-    if (sw) {
-      sw.addEventListener('statechange', () => {
-        if (sw.state === 'activated') {
-          clearTimeout(timeout);
-          resolve();
-        }
-      });
-    } else {
+    if (!sw) {
       clearTimeout(timeout);
       resolve();
+      return;
     }
+
+    sw.addEventListener('statechange', () => {
+      console.log('[Push] SW state:', sw.state);
+      if (sw.state === 'activated') {
+        clearTimeout(timeout);
+        resolve();
+      }
+      if (sw.state === 'redundant') {
+        clearTimeout(timeout);
+        reject(new Error('SW devenu REDUNDANT pendant installation'));
+      }
+    });
   });
 
+  console.log('[Push] SW-Push actif');
   return registration;
 }
 
@@ -66,7 +78,6 @@ export function useNotifications() {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [permission, setPermission] = useState<NotificationPermission>('default');
 
-  // Recuperer les notifications de la societe
   const { data: notifications, mutate, isLoading } = useSWR(
     user?.societe?.id ? `notifications-${user.societe.id}` : null,
     async () => {
@@ -88,10 +99,10 @@ export function useNotifications() {
     setIsSupported(true);
     setPermission(Notification.permission);
 
-    // Verifier si deja abonne (sans bloquer)
-    navigator.serviceWorker.getRegistration().then((registration) => {
-      if (registration) {
-        registration.pushManager.getSubscription().then((subscription) => {
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+      const pushSW = registrations.find(r => r.active?.scriptURL.includes('sw-push.js'));
+      if (pushSW) {
+        pushSW.pushManager.getSubscription().then((subscription) => {
           setIsSubscribed(!!subscription);
         });
       }
@@ -102,41 +113,36 @@ export function useNotifications() {
     console.log('[Push] subscribe() appele');
 
     if (!isSupported) {
-      toast.error("Navigateur non compatible avec les notifications push");
+      toast.error("Navigateur non compatible");
       return;
     }
 
-    // Verifier cle VAPID au tout debut
     const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
     if (!vapidKey) {
-      console.error('[Push] NEXT_PUBLIC_VAPID_PUBLIC_KEY manquante');
-      toast.error("Configuration serveur manquante (VAPID)");
+      console.error('[Push] VAPID key manquante');
+      toast.error("Configuration serveur manquante");
       return;
     }
 
     try {
-      // 1. Demander permission AVANT le SW (feedback immediat utilisateur)
-      toast.info("Demande de permission en cours...");
+      toast.info("Demande de permission...");
       const result = await Notification.requestPermission();
       setPermission(result);
       if (result !== 'granted') {
-        toast.error("Permission refusee. Autorisez dans les parametres du navigateur.");
+        toast.error("Permission refusee");
         return;
       }
 
-      // 2. Obtenir/enregistrer le Service Worker
-      toast.info("Preparation du service worker...");
-      const registration = await getServiceWorkerRegistration();
+      toast.info("Activation du service worker...");
+      const registration = await registerPushServiceWorker();
 
-      // 3. Creer la subscription push
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidKey),
       });
 
-      console.log('[Push] Subscription creee:', subscription.endpoint);
+      console.log('[Push] Subscription:', subscription.endpoint);
 
-      // 4. Envoyer a notre API
       const response = await fetch('/api/push/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -148,15 +154,15 @@ export function useNotifications() {
 
       if (!response.ok) {
         const errText = await response.text();
-        throw new Error("API subscribe failed: " + errText);
+        throw new Error("API subscribe: " + errText);
       }
 
       setIsSubscribed(true);
-      toast.success("Notifications activees ! Votre telephone vibrera pour chaque livraison. 📳");
+      toast.success("Notifications activees ! 📳");
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      console.error('[Push] Erreur subscribe:', msg, error);
-      toast.error("Echec activation: " + msg);
+      console.error('[Push] Erreur:', msg, error);
+      toast.error("Echec: " + msg);
     }
   };
 
