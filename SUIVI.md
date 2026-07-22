@@ -26,6 +26,154 @@
 
 ## 📅 Journal de travail
 
+---
+
+## 🚨 REPRISE — Session 21/07/2026 (état actuel)
+
+### ✅ FAIT dans cette session
+
+**Perf 1 — Middleware getSession() local**
+- `src/lib/supabase/middleware.ts` : `getUser()` (appel réseau) → `getSession()` (JWT cookie local)
+- Économise ~13 appels réseau par chargement de page
+
+**Perf 2 — AuthProvider optimisé**
+- `src/components/AuthProvider.tsx` : `loadUser` en useCallback stable
+- `supabaseRef` avec useRef pour éviter recréations
+- getSession() local au lieu de getUser() réseau
+- Économise ~7 appels role/societe par chargement
+
+**Bug 3 — Preparation → Livraison**
+- `src/components/commandes/PreparationInterface.tsx`
+- Ligne handleFinishPreparation : `updateStatut(id, 'PREPARATION')` → `'EN_LIVRAISON'`
+- Le bouton "Terminer préparation" changeait le statut vers lui-même (aucun effet)
+
+**Bug 4 — Push notifications (partiellement corrigé, abandonné)**
+- Middleware : ajout exclusions `sw.js`, `sw-push.js`, `manifest.json`, `workbox-*.js`, `icons/*`
+- `next.config.mjs` : ajout `customWorkerDir: 'worker'` + `runtimeCaching: []`
+- Nouveau fichier `public/sw-push.js` : SW dédié push (sans workbox)
+- `src/hooks/useNotifications.ts` : registerPushServiceWorker() avec register manuel + timeout 15s
+- `src/app/api/push/send/route.ts` : sécurisé avec vérif cookie Supabase + isolation multi-tenant
+- `src/components/livreur/LivraisonForm.tsx` : envoi push après validation (fire-and-forget)
+- **Résultat** : SW ne s'active pas sur téléphone Xiaomi test → push abandonnés
+- **Décision** : passer sur solution hybride (voir TODO ci-dessous)
+
+### ❌ SKIPPÉ dans cette session
+- Région Vercel iad1 → cpt1 (gain marginal après perf 1+2)
+- Anti-bot IA (pas de risque réel, app par invitation email)
+- Batch SQL fn_recette_cout (9 appels RPC → 1)
+
+---
+
+## 🔜 TODO PRIORITAIRE reprise session suivante
+
+### 🥇 #1 — Solution hybride SMS (remplace push notifications)
+**Durée estimée** : ~20 min
+
+**Contexte** : Push notifications abandonnées car SW ne s'active pas fiablement.
+Solution alternative : cloche in-app (déjà en place) + polling 30s SWR (déjà en place) + clic notif ouvre app SMS.
+
+**À faire** :
+1. Modifier `src/components/livreur/LivraisonForm.tsx` :
+   - Retirer l'appel `envoyerPushGerant()` (ou le garder mais silent)
+   - Insérer directement une ligne dans table `notifications` via Supabase :
+     ```typescript
+     await supabase.from('notifications').insert({
+       societe_id: user.societe.id,
+       type: 'LIVRAISON_VALIDEE',
+       titre: 'Livraison ' + (statut === 'LIVRE_PAYE' ? 'payee' : 'en dette') + ' - ' + code,
+       message: clientNom + ' - ' + total + ' Ar',
+       donnees: { telephone, smsBody, commande_id: id }
+     });
+     ```
+2. Modifier `src/components/layout/NotificationBell.tsx` :
+   - Sur clic d'une notification, si `donnees.telephone` + `donnees.smsBody` existent :
+     - Créer URL `sms:+261XXXXX?body=<smsBody encoded>`
+     - `window.location.href = smsUrl` → ouvre app SMS native
+
+**Résultat attendu** :
+- GERANT voit badge rouge sur cloche max 30s après validation
+- Clic sur notif → app SMS s'ouvre avec message pré-rempli
+- 100% fiable, aucune dépendance Chrome/SW/FCM
+
+---
+
+### 🥈 #2 — Batch SQL fn_recette_cout (fix N+1)
+**Durée estimée** : ~20 min
+
+**Contexte** : Sur page Recettes, `rpc/fn_recette_cout` est appelé 9 fois d'affilée pour 9 recettes.
+
+**À faire** :
+1. Créer nouvelle fonction SQL Supabase `fn_recettes_couts_batch(recette_ids uuid[])` :
+   - Retourne `TABLE(recette_id uuid, cout_total numeric)`
+   - Boucle interne PL/pgSQL, 1 seule requête réseau
+2. Modifier `src/hooks/useRecettes.ts` :
+   - Remplacer les 9 `.rpc('fn_recette_cout', ...)` par 1 seul `.rpc('fn_recettes_couts_batch', { recette_ids: [...] })`
+
+**Impact** : Page Recettes 3-4x plus rapide.
+
+---
+
+### 🥉 #3 — Badges nav Stock + Recettes
+**Durée estimée** : ~30 min
+
+**À faire** :
+- Badge rouge sur Sidebar/BottomNav **Stock** (nombre d'alertes stock faible)
+- Badge rouge sur Sidebar/BottomNav **Recettes** (nombre de produits sans recette)
+- Fetch les counts via SWR partagé dans le layout
+
+---
+
+### 🏅 #4 — Colonne coût recette dans /finance
+**Durée estimée** : ~15 min
+
+**À faire** :
+- Ajouter colonne "Type coût" dans tableau bénéfice par produit
+- Indiquer si le coût utilisé est "recette réelle" ou "prix_achat indicatif"
+- Basé sur présence ou absence d'une recette pour ce produit
+
+---
+
+### 🎨 #5 — Nice to have (plus tard)
+- Migration `useLivreurs` / `useCommandes` / `useDepenses` vers SWR (cache)
+- Optimisation lazy load Recharts (page Finance)
+- Cloudflare CDN devant Vercel (gain latence Madagascar)
+- Système update auto PWA (skipWaiting force via ServiceWorker)
+
+---
+
+## 📊 État performance actuel (post session 21/07)
+
+**Avant session** :
+- ~13 appels `getUser()` par chargement de page
+- ~7 appels role/societe par chargement
+- 9 appels `fn_recette_cout` sur page Recettes
+
+**Après session** :
+- ✅ 1 seul `getSession()` local par chargement (zéro réseau middleware)
+- ✅ 1 seul appel role/societe (via AuthProvider centralisé)
+- ⏳ 9 appels `fn_recette_cout` restent (à batcher — TODO #2)
+
+**Impact utilisateur** : Navigation entre pages **~50% plus fluide** ressentie.
+
+---
+
+## 📁 Fichiers créés/modifiés session 21/07
+
+**Créés** :
+- `public/sw-push.js` (SW dédié push notifications — inactif actuellement)
+
+**Modifiés** :
+- `src/lib/supabase/middleware.ts` (getSession local)
+- `src/components/AuthProvider.tsx` (useCallback + useRef + getSession)
+- `src/middleware.ts` (matcher exclut SW + manifest + icons)
+- `next.config.mjs` (customWorkerDir + runtimeCaching disabled)
+- `src/hooks/useNotifications.ts` (registerPushServiceWorker manuel)
+- `src/app/api/push/send/route.ts` (auth cookie + isolation multi-tenant)
+- `src/components/livreur/LivraisonForm.tsx` (envoi push + fix bug préparation)
+- `src/components/commandes/PreparationInterface.tsx` (fix statut EN_LIVRAISON)
+
+---
+
 ### 19/07/2026 — Bugs + Notifications Push (session en cours)
 
 **Duree** : ~3h
